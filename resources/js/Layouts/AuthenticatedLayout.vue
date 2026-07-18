@@ -1,305 +1,179 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
-import Dropdown from '@/Components/Dropdown.vue';
-import DropdownLink from '@/Components/DropdownLink.vue';
-import NavLink from '@/Components/NavLink.vue';
-import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link } from '@inertiajs/vue3';
 
-const showingNavigationDropdown = ref(false);
+const sidebarOpen = ref(false);
+const sidebarCollapsed = ref(localStorage.getItem('sidebarCollapsed') === '1');
+
+watch(sidebarCollapsed, (value) => {
+    localStorage.setItem('sidebarCollapsed', value ? '1' : '0');
+});
+
+const mainLinks = [
+    { label: 'Dashboard', route: 'dashboard', active: 'dashboard' },
+    { label: 'Contas', route: 'finance.accounts.index', active: 'finance.accounts.*' },
+    { label: 'Transações', route: 'finance.transactions.index', active: 'finance.transactions.*' },
+    { label: 'Transferências', route: 'finance.transfers.index', active: 'finance.transfers.*' },
+    { label: 'Recorrências', route: 'finance.recurring.index', active: 'finance.recurring.*' },
+];
+
+const registrationLinks = [
+    { label: 'Pessoas', route: 'finance.people.index', active: 'finance.people.*' },
+    { label: 'Instituições', route: 'finance.institutions.index', active: 'finance.institutions.*' },
+    { label: 'Categorias', route: 'finance.categories.index', active: 'finance.categories.*' },
+];
+
+const linkClasses = (active) =>
+    active
+        ? 'flex items-center rounded-md px-3 py-2 text-sm font-medium bg-indigo-50 text-indigo-700'
+        : 'flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900';
 </script>
 
 <template>
     <div>
-        <div class="min-h-screen bg-gray-100">
-            <nav
-                class="border-b border-gray-100 bg-white"
+        <div class="min-h-screen bg-gray-100 sm:flex">
+            <!-- Mobile backdrop -->
+            <div
+                v-show="sidebarOpen"
+                class="fixed inset-0 z-40 bg-gray-900/50 sm:hidden"
+                @click="sidebarOpen = false"
+            ></div>
+
+            <!-- Sidebar -->
+            <aside
+                class="fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 -translate-x-full transform flex-col border-r border-gray-200 bg-white transition-transform duration-200 ease-in-out sm:static sm:translate-x-0"
+                :class="{ 'translate-x-0': sidebarOpen, 'sm:hidden': sidebarCollapsed }"
             >
-                <!-- Primary Navigation Menu -->
-                <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div class="flex h-16 justify-between">
-                        <div class="flex">
-                            <!-- Logo -->
-                            <div class="flex shrink-0 items-center">
-                                <Link :href="route('dashboard')">
-                                    <ApplicationLogo
-                                        class="block h-9 w-auto fill-current text-gray-800"
-                                    />
-                                </Link>
-                            </div>
-
-                            <!-- Navigation Links -->
-                            <div
-                                class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex"
-                            >
-                                <NavLink
-                                    :href="route('dashboard')"
-                                    :active="route().current('dashboard')"
-                                >
-                                    Dashboard
-                                </NavLink>
-                                <NavLink
-                                    :href="route('finance.accounts.index')"
-                                    :active="route().current('finance.accounts.*')"
-                                >
-                                    Contas
-                                </NavLink>
-                                <NavLink
-                                    :href="route('finance.transactions.index')"
-                                    :active="route().current('finance.transactions.*')"
-                                >
-                                    Transações
-                                </NavLink>
-                                <NavLink
-                                    :href="route('finance.transfers.index')"
-                                    :active="route().current('finance.transfers.*')"
-                                >
-                                    Transferências
-                                </NavLink>
-                                <NavLink
-                                    :href="route('finance.recurring.index')"
-                                    :active="route().current('finance.recurring.*')"
-                                >
-                                    Recorrências
-                                </NavLink>
-                            </div>
-                        </div>
-
-                        <div class="hidden sm:ms-6 sm:flex sm:items-center">
-                            <!-- Registrations Dropdown -->
-                            <div class="relative ms-3">
-                                <Dropdown align="right" width="48">
-                                    <template #trigger>
-                                        <span class="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                class="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
-                                            >
-                                                Cadastros
-
-                                                <svg
-                                                    class="-me-0.5 ms-2 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fill-rule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clip-rule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </span>
-                                    </template>
-
-                                    <template #content>
-                                        <DropdownLink :href="route('finance.people.index')">
-                                            Pessoas
-                                        </DropdownLink>
-                                        <DropdownLink :href="route('finance.institutions.index')">
-                                            Instituições
-                                        </DropdownLink>
-                                        <DropdownLink :href="route('finance.categories.index')">
-                                            Categorias
-                                        </DropdownLink>
-                                    </template>
-                                </Dropdown>
-                            </div>
-
-                            <!-- Settings Dropdown -->
-                            <div class="relative ms-3">
-                                <Dropdown align="right" width="48">
-                                    <template #trigger>
-                                        <span class="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                class="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
-                                            >
-                                                {{ $page.props.auth.user.name }}
-
-                                                <svg
-                                                    class="-me-0.5 ms-2 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fill-rule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clip-rule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </span>
-                                    </template>
-
-                                    <template #content>
-                                        <DropdownLink
-                                            :href="route('profile.edit')"
-                                        >
-                                            Profile
-                                        </DropdownLink>
-                                        <DropdownLink
-                                            :href="route('logout')"
-                                            method="post"
-                                            as="button"
-                                        >
-                                            Log Out
-                                        </DropdownLink>
-                                    </template>
-                                </Dropdown>
-                            </div>
-                        </div>
-
-                        <!-- Hamburger -->
-                        <div class="-me-2 flex items-center sm:hidden">
-                            <button
-                                @click="
-                                    showingNavigationDropdown =
-                                        !showingNavigationDropdown
-                                "
-                                class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
-                            >
-                                <svg
-                                    class="h-6 w-6"
-                                    stroke="currentColor"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        :class="{
-                                            hidden: showingNavigationDropdown,
-                                            'inline-flex':
-                                                !showingNavigationDropdown,
-                                        }"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M4 6h16M4 12h16M4 18h16"
-                                    />
-                                    <path
-                                        :class="{
-                                            hidden: !showingNavigationDropdown,
-                                            'inline-flex':
-                                                showingNavigationDropdown,
-                                        }"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
+                <div class="flex h-16 shrink-0 items-center justify-between px-4">
+                    <Link :href="route('dashboard')" class="flex items-center">
+                        <ApplicationLogo class="block h-8 w-auto fill-current text-gray-800" />
+                    </Link>
+                    <div class="flex items-center">
+                        <!-- Close on desktop (collapses sidebar) -->
+                        <button
+                            type="button"
+                            title="Fechar menu"
+                            class="hidden rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 sm:inline-flex"
+                            @click="sidebarCollapsed = true"
+                        >
+                            <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7M4 12h16" />
+                            </svg>
+                        </button>
+                        <!-- Close on mobile (hides off-canvas sidebar) -->
+                        <button
+                            type="button"
+                            title="Fechar menu"
+                            class="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 sm:hidden"
+                            @click="sidebarOpen = false"
+                        >
+                            <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Responsive Navigation Menu -->
-                <div
-                    :class="{
-                        block: showingNavigationDropdown,
-                        hidden: !showingNavigationDropdown,
-                    }"
-                    class="sm:hidden"
-                >
-                    <div class="space-y-1 pb-3 pt-2">
-                        <ResponsiveNavLink
-                            :href="route('dashboard')"
-                            :active="route().current('dashboard')"
+                <nav class="flex-1 space-y-6 overflow-y-auto px-3 py-4">
+                    <div class="space-y-1">
+                        <Link
+                            v-for="link in mainLinks"
+                            :key="link.route"
+                            :href="route(link.route)"
+                            :class="linkClasses(route().current(link.active))"
                         >
-                            Dashboard
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            :href="route('finance.accounts.index')"
-                            :active="route().current('finance.accounts.*')"
-                        >
-                            Contas
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            :href="route('finance.transactions.index')"
-                            :active="route().current('finance.transactions.*')"
-                        >
-                            Transações
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            :href="route('finance.transfers.index')"
-                            :active="route().current('finance.transfers.*')"
-                        >
-                            Transferências
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            :href="route('finance.recurring.index')"
-                            :active="route().current('finance.recurring.*')"
-                        >
-                            Recorrências
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            :href="route('finance.people.index')"
-                            :active="route().current('finance.people.*')"
-                        >
-                            Pessoas
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            :href="route('finance.institutions.index')"
-                            :active="route().current('finance.institutions.*')"
-                        >
-                            Instituições
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            :href="route('finance.categories.index')"
-                            :active="route().current('finance.categories.*')"
-                        >
-                            Categorias
-                        </ResponsiveNavLink>
+                            {{ link.label }}
+                        </Link>
                     </div>
 
-                    <!-- Responsive Settings Options -->
-                    <div
-                        class="border-t border-gray-200 pb-1 pt-4"
+                    <div>
+                        <p class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                            Cadastros
+                        </p>
+                        <div class="mt-1 space-y-1">
+                            <Link
+                                v-for="link in registrationLinks"
+                                :key="link.route"
+                                :href="route(link.route)"
+                                :class="linkClasses(route().current(link.active))"
+                            >
+                                {{ link.label }}
+                            </Link>
+                        </div>
+                    </div>
+                </nav>
+
+                <div class="shrink-0 border-t border-gray-200 p-3">
+                    <div class="px-3 py-1">
+                        <div class="truncate text-sm font-medium text-gray-800">
+                            {{ $page.props.auth.user.name }}
+                        </div>
+                        <div class="truncate text-xs text-gray-500">
+                            {{ $page.props.auth.user.email }}
+                        </div>
+                    </div>
+                    <div class="mt-2 space-y-1">
+                        <Link
+                            :href="route('profile.edit')"
+                            class="flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                        >
+                            Perfil
+                        </Link>
+                        <Link
+                            :href="route('logout')"
+                            method="post"
+                            as="button"
+                            class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                        >
+                            Sair
+                        </Link>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Content column -->
+            <div class="flex min-w-0 flex-1 flex-col">
+                <!-- Mobile top bar -->
+                <div class="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b border-gray-100 bg-white px-4 sm:hidden">
+                    <button
+                        type="button"
+                        class="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500"
+                        @click="sidebarOpen = true"
                     >
-                        <div class="px-4">
-                            <div
-                                class="text-base font-medium text-gray-800"
-                            >
-                                {{ $page.props.auth.user.name }}
-                            </div>
-                            <div class="text-sm font-medium text-gray-500">
-                                {{ $page.props.auth.user.email }}
-                            </div>
-                        </div>
+                        <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                    <ApplicationLogo class="block h-8 w-auto fill-current text-gray-800" />
+                </div>
 
-                        <div class="mt-3 space-y-1">
-                            <ResponsiveNavLink :href="route('profile.edit')">
-                                Profile
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                :href="route('logout')"
-                                method="post"
-                                as="button"
-                            >
-                                Log Out
-                            </ResponsiveNavLink>
-                        </div>
+                <!-- Reopen button when sidebar is collapsed on desktop -->
+                <div v-show="sidebarCollapsed" class="sticky top-0 z-30 hidden shrink-0 border-b border-gray-100 bg-white px-4 py-3 sm:block">
+                    <button
+                        type="button"
+                        title="Abrir menu"
+                        class="inline-flex rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500"
+                        @click="sidebarCollapsed = false"
+                    >
+                        <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M20 12H4" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Page Heading -->
+                <header class="bg-white shadow" v-if="$slots.header">
+                    <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                        <slot name="header" />
                     </div>
-                </div>
-            </nav>
+                </header>
 
-            <!-- Page Heading -->
-            <header
-                class="bg-white shadow"
-                v-if="$slots.header"
-            >
-                <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                    <slot name="header" />
-                </div>
-            </header>
-
-            <!-- Page Content -->
-            <main>
-                <slot />
-            </main>
+                <!-- Page Content -->
+                <main class="flex-1">
+                    <slot />
+                </main>
+            </div>
         </div>
     </div>
 </template>
