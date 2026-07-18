@@ -1,8 +1,13 @@
 <?php
 
+use App\Enums\AccountType;
 use App\Http\Controllers\ProfileController;
+use App\Models\Account;
+use App\Models\RecurringTransaction;
+use App\Support\Money;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -15,7 +20,34 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
+    $accounts = Account::with('person')->whereNull('archived_at')->orderBy('name')->get();
+
+    $balancesByPerson = $accounts
+        ->filter(fn (Account $account) => $account->type !== AccountType::CreditCard)
+        ->groupBy(fn (Account $account) => $account->person->name)
+        ->map(fn ($group) => $group->reduce(fn ($carry, Account $account) => Money::add($carry, $account->balance()), '0.00'));
+
+    $openInvoices = $accounts
+        ->filter(fn (Account $account) => $account->type === AccountType::CreditCard)
+        ->map(fn (Account $account) => [
+            'account' => $account->only(['id', 'name']),
+            'total' => $account->openInvoiceTotal(),
+        ])
+        ->filter(fn ($invoice) => Money::compare($invoice['total'], '0.00') === 1)
+        ->values();
+
+    $upcomingRecurring = RecurringTransaction::with(['account', 'person'])
+        ->where('is_active', true)
+        ->whereBetween('next_run_date', [Carbon::today(), Carbon::today()->addDays(14)])
+        ->orderBy('next_run_date')
+        ->get();
+
+    return Inertia::render('Dashboard', [
+        'balancesByPerson' => $balancesByPerson,
+        'netWorth' => $balancesByPerson->reduce(fn ($carry, $balance) => Money::add($carry, $balance), '0.00'),
+        'openInvoices' => $openInvoices,
+        'upcomingRecurring' => $upcomingRecurring,
+    ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
@@ -25,3 +57,4 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/auth.php';
+require __DIR__.'/finance.php';
