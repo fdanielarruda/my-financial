@@ -174,7 +174,7 @@ function openRecent(group) {
         });
 }
 
-const collapsedGroups = reactive(new Set());
+const collapsedGroups = reactive(new Set(JSON.parse(localStorage.getItem('quickCollapsedGroups') ?? '[]')));
 
 function toggleGroup(key) {
     if (collapsedGroups.has(key)) {
@@ -182,6 +182,8 @@ function toggleGroup(key) {
     } else {
         collapsedGroups.add(key);
     }
+
+    localStorage.setItem('quickCollapsedGroups', JSON.stringify([...collapsedGroups]));
 }
 
 function submit(type) {
