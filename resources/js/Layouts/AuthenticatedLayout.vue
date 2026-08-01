@@ -14,6 +14,7 @@ const mainLinks = [
     { label: 'Dashboard', route: 'dashboard', active: 'dashboard' },
     { label: 'Contas', route: 'finance.accounts.index', active: 'finance.accounts.*' },
     { label: 'Transações', route: 'finance.transactions.index', active: 'finance.transactions.*' },
+    { label: 'Importar fatura', route: 'finance.statement-imports.create', active: 'finance.statement-imports.*' },
     { label: 'Transferências', route: 'finance.transfers.index', active: 'finance.transfers.*' },
     { label: 'Recorrências', route: 'finance.recurring.index', active: 'finance.recurring.*' },
 ];

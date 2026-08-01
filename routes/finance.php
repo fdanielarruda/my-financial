@@ -6,6 +6,7 @@ use App\Http\Controllers\Finance\CreditCardInvoiceController;
 use App\Http\Controllers\Finance\InstitutionController;
 use App\Http\Controllers\Finance\PersonController;
 use App\Http\Controllers\Finance\RecurringTransactionController;
+use App\Http\Controllers\Finance\StatementImportController;
 use App\Http\Controllers\Finance\TransactionController;
 use App\Http\Controllers\Finance\TransferController;
 use Illuminate\Support\Facades\Route;
@@ -25,4 +26,10 @@ Route::middleware(['auth', 'verified'])->prefix('finance')->name('finance.')->gr
 
     Route::get('invoices/{invoice}', [CreditCardInvoiceController::class, 'show'])->name('invoices.show');
     Route::post('invoices/{invoice}/pay', [CreditCardInvoiceController::class, 'pay'])->name('invoices.pay');
+
+    Route::get('statement-imports/create', [StatementImportController::class, 'create'])->name('statement-imports.create');
+    Route::post('statement-imports', [StatementImportController::class, 'upload'])->name('statement-imports.upload');
+    Route::get('statement-imports/{statementImport}', [StatementImportController::class, 'show'])->name('statement-imports.show');
+    Route::post('statement-imports/{statementImport}/reextract', [StatementImportController::class, 'reextract'])->name('statement-imports.reextract');
+    Route::post('statement-imports/{statementImport}/confirm', [StatementImportController::class, 'confirm'])->name('statement-imports.confirm');
 });

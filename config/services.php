@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'openai' => [
+        'model' => env('OPENAI_MODEL', 'gpt-5'),
+    ],
+
 ];

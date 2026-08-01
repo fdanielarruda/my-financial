@@ -24,6 +24,11 @@ class Money
         return self::toCents($a) <=> self::toCents($b);
     }
 
+    public static function mul(string $a, int $times): string
+    {
+        return self::fromCents(self::toCents($a) * $times);
+    }
+
     /**
      * Split a total into $parts installments, allocating the rounding
      * remainder to the last installment so the parts always sum back to $total.
