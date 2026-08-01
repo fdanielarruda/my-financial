@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'user_id', 'account_id', 'person_id', 'category_id', 'credit_card_invoice_id', 'recurring_transaction_id',
-    'type', 'description', 'amount', 'date',
+    'type', 'description', 'is_unknown', 'amount', 'date',
     'installment_group_id', 'installment_number', 'installment_total',
 ])]
 class Transaction extends Model
@@ -29,6 +29,7 @@ class Transaction extends Model
             'type' => TransactionType::class,
             'amount' => 'decimal:2',
             'date' => 'date',
+            'is_unknown' => 'boolean',
         ];
     }
 

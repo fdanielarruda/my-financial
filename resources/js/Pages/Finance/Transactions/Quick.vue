@@ -45,12 +45,22 @@ const accountsForBank = computed(() => props.accounts.filter((a) => bankKey(a) =
 const form = useForm({
     amount: '',
     description: '',
+    is_unknown: false,
     account_id: accountsForBank.value[0]?.id ?? '',
     person_id: accountsForBank.value[0]?.person.id ?? '',
     category_id: '',
     date: today,
     type: 'expense',
 });
+
+watch(
+    () => form.is_unknown,
+    (value) => {
+        if (value) {
+            form.description = '';
+        }
+    }
+);
 
 watch(selectedBank, () => {
     const first = accountsForBank.value[0];
@@ -163,7 +173,7 @@ function submit(type) {
     form.post(route('finance.transactions.store'), {
         preserveScroll: true,
         onSuccess: () => {
-            form.reset('amount', 'description');
+            form.reset('amount', 'description', 'is_unknown');
         },
     });
 }
@@ -198,13 +208,20 @@ function submit(type) {
                     </div>
 
                     <div class="mt-4">
-                        <InputLabel for="description" value="Descrição" />
+                        <div class="flex items-center justify-between">
+                            <InputLabel for="description" value="Descrição" />
+                            <label class="flex items-center gap-2 text-sm text-gray-600">
+                                <Checkbox v-model:checked="form.is_unknown" />
+                                Transação desconhecida
+                            </label>
+                        </div>
                         <TextInput
                             id="description"
                             v-model="form.description"
-                            class="mt-1 block w-full"
+                            class="mt-1 block w-full disabled:bg-gray-100"
                             placeholder="Ex: Mercado, Salário..."
-                            required
+                            :disabled="form.is_unknown"
+                            :required="!form.is_unknown"
                         />
                         <InputError class="mt-2" :message="form.errors.description" />
                     </div>

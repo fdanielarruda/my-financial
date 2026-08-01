@@ -81,6 +81,7 @@ class TransactionController extends Controller
     public function store(StoreTransactionRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $isUnknown = (bool) ($data['is_unknown'] ?? false);
 
         Transaction::createPurchase([
             'user_id' => $request->user()->id,
@@ -88,7 +89,8 @@ class TransactionController extends Controller
             'person_id' => $data['person_id'],
             'category_id' => $data['category_id'] ?? null,
             'type' => $data['type'],
-            'description' => $data['description'],
+            'description' => $isUnknown ? 'Desconhecido' : $data['description'],
+            'is_unknown' => $isUnknown,
             'amount' => $data['amount'],
             'date' => $data['date'],
         ], installments: $data['installments'] ?? 1);
@@ -99,13 +101,15 @@ class TransactionController extends Controller
     public function update(StoreTransactionRequest $request, Transaction $transaction): RedirectResponse
     {
         $data = $request->validated();
+        $isUnknown = (bool) ($data['is_unknown'] ?? false);
 
         $transaction->update([
             'account_id' => $data['account_id'],
             'person_id' => $data['person_id'],
             'category_id' => $data['category_id'] ?? null,
             'type' => $data['type'],
-            'description' => $data['description'],
+            'description' => $isUnknown ? 'Desconhecido' : $data['description'],
+            'is_unknown' => $isUnknown,
             'amount' => $data['amount'],
             'date' => $data['date'],
         ]);
