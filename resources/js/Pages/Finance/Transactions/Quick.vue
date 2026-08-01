@@ -53,14 +53,6 @@ const form = useForm({
     type: 'expense',
 });
 
-watch(
-    () => form.is_unknown,
-    (value) => {
-        if (value) {
-            form.description = '';
-        }
-    }
-);
 
 watch(selectedBank, () => {
     const first = accountsForBank.value[0];
@@ -236,9 +228,8 @@ function submit(type) {
                         <TextInput
                             id="description"
                             v-model="form.description"
-                            class="mt-1 block w-full disabled:bg-gray-100"
-                            placeholder="Ex: Mercado, Salário..."
-                            :disabled="form.is_unknown"
+                            class="mt-1 block w-full"
+                            :placeholder="form.is_unknown ? 'Desconhecido (opcional preencher)' : 'Ex: Mercado, Salário...'"
                             :required="!form.is_unknown"
                         />
                         <InputError class="mt-2" :message="form.errors.description" />

@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import Modal from '@/Components/Modal.vue';
@@ -46,6 +47,7 @@ const editForm = useForm({
     category_id: '',
     type: 'expense',
     description: '',
+    is_unknown: false,
     amount: '',
     date: '',
 });
@@ -57,6 +59,7 @@ function openEdit(transaction) {
     editForm.category_id = transaction.category?.id ?? '';
     editForm.type = transaction.type;
     editForm.description = transaction.description;
+    editForm.is_unknown = transaction.is_unknown;
     editForm.amount = transaction.amount;
     editForm.date = transaction.date.slice(0, 10);
     editForm.clearErrors();
@@ -144,6 +147,12 @@ const groupedByDay = computed(() => {
                                         >
                                             Transferência
                                         </span>
+                                        <span
+                                            v-if="transaction.is_unknown"
+                                            class="ml-1 rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-yellow-700"
+                                        >
+                                            Desconhecida
+                                        </span>
                                     </p>
                                     <p class="text-xs text-gray-500">
                                         {{ bankLabel(transaction) }} / {{ transaction.account.name }}
@@ -193,8 +202,20 @@ const groupedByDay = computed(() => {
 
             <div class="mt-6 grid grid-cols-2 gap-4">
                 <div class="col-span-2">
-                    <InputLabel for="edit_description" value="Descrição" />
-                    <TextInput id="edit_description" v-model="editForm.description" class="mt-1 block w-full" required />
+                    <div class="flex items-center justify-between">
+                        <InputLabel for="edit_description" value="Descrição" />
+                        <label class="flex items-center gap-2 text-sm text-gray-600">
+                            <Checkbox v-model:checked="editForm.is_unknown" />
+                            Transação desconhecida
+                        </label>
+                    </div>
+                    <TextInput
+                        id="edit_description"
+                        v-model="editForm.description"
+                        class="mt-1 block w-full"
+                        :placeholder="editForm.is_unknown ? 'Desconhecido (opcional preencher)' : ''"
+                        :required="!editForm.is_unknown"
+                    />
                     <InputError class="mt-2" :message="editForm.errors.description" />
                 </div>
 
