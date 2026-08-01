@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import { Link } from '@inertiajs/vue3';
 
@@ -30,6 +30,25 @@ const registrationLinks = [
     { label: 'Instituições', route: 'finance.institutions.index', active: 'finance.institutions.*' },
     { label: 'Categorias', route: 'finance.categories.index', active: 'finance.categories.*' },
 ];
+
+const menuClickCounts = reactive(JSON.parse(localStorage.getItem('menuClickCounts') ?? '{}'));
+
+function trackMenuClick(link) {
+    menuClickCounts[link.route] = (menuClickCounts[link.route] ?? 0) + 1;
+    localStorage.setItem('menuClickCounts', JSON.stringify(menuClickCounts));
+}
+
+function sortByClicks(links) {
+    return [...links].sort((a, b) => (menuClickCounts[b.route] ?? 0) - (menuClickCounts[a.route] ?? 0));
+}
+
+const sortedMainLinks = computed(() => {
+    const pinned = mainLinks.filter((link) => link.route === 'dashboard');
+    const rest = mainLinks.filter((link) => link.route !== 'dashboard');
+
+    return [...pinned, ...sortByClicks(rest)];
+});
+const sortedRegistrationLinks = computed(() => sortByClicks(registrationLinks));
 
 const isActive = (link) => {
     const patterns = Array.isArray(link.active) ? link.active : [link.active];
@@ -91,10 +110,11 @@ const linkClasses = (active) =>
                 <nav class="flex-1 space-y-6 overflow-y-auto px-3 py-4">
                     <div class="space-y-1">
                         <Link
-                            v-for="link in mainLinks"
+                            v-for="link in sortedMainLinks"
                             :key="link.route"
                             :href="route(link.route)"
                             :class="linkClasses(isActive(link))"
+                            @click="trackMenuClick(link)"
                         >
                             {{ link.label }}
                         </Link>
@@ -106,10 +126,11 @@ const linkClasses = (active) =>
                         </p>
                         <div class="mt-1 space-y-1">
                             <Link
-                                v-for="link in registrationLinks"
+                                v-for="link in sortedRegistrationLinks"
                                 :key="link.route"
                                 :href="route(link.route)"
                                 :class="linkClasses(isActive(link))"
+                                @click="trackMenuClick(link)"
                             >
                                 {{ link.label }}
                             </Link>
