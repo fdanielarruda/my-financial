@@ -37,6 +37,24 @@ class TransactionController extends Controller
         ]);
     }
 
+    public function recentByBank(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $institutionId = $request->integer('institution_id') ?: null;
+
+        $transactions = Transaction::query()
+            ->where('user_id', $request->user()->id)
+            ->whereHas('account', fn ($q) => $institutionId
+                ? $q->where('institution_id', $institutionId)
+                : $q->whereNull('institution_id'))
+            ->with(['account', 'category'])
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get();
+
+        return response()->json(['transactions' => $transactions]);
+    }
+
     public function index(Request $request): Response
     {
         $transactions = Transaction::query()

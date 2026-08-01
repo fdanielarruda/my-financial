@@ -20,6 +20,7 @@ Route::middleware(['auth', 'verified'])->prefix('finance')->name('finance.')->gr
     Route::resource('accounts', AccountController::class)->except(['create', 'edit'])->names('accounts');
 
     Route::get('transactions/quick', [TransactionController::class, 'quick'])->name('transactions.quick');
+    Route::get('transactions/recent-by-bank', [TransactionController::class, 'recentByBank'])->name('transactions.recent-by-bank');
     Route::resource('transactions', TransactionController::class)->except(['show', 'create', 'edit'])->names('transactions');
 
     Route::get('summary', [SummaryController::class, 'index'])->name('summary.index');

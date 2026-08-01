@@ -3,9 +3,10 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
+import Modal from '@/Components/Modal.vue';
 import SelectInput from '@/Components/SelectInput.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { formatMoney } from '@/finance';
+import { formatDate, formatMoney } from '@/finance';
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
@@ -113,6 +114,7 @@ const bankGroups = computed(() => {
         if (!groups.has(key)) {
             groups.set(key, {
                 bank: key,
+                bankId: a.institution?.id ?? null,
                 accounts: [],
                 investmentAccounts: [],
                 total: 0,
@@ -134,6 +136,27 @@ const bankGroups = computed(() => {
 
     return [...groups.values()].sort((a, b) => a.bank.localeCompare(b.bank));
 });
+
+const showRecentModal = ref(false);
+const recentBankLabel = ref('');
+const recentTransactions = ref([]);
+const loadingRecent = ref(false);
+
+function openRecent(group) {
+    recentBankLabel.value = group.bank;
+    showRecentModal.value = true;
+    loadingRecent.value = true;
+    recentTransactions.value = [];
+
+    window.axios
+        .get(route('finance.transactions.recent-by-bank'), { params: { institution_id: group.bankId } })
+        .then((response) => {
+            recentTransactions.value = response.data.transactions;
+        })
+        .finally(() => {
+            loadingRecent.value = false;
+        });
+}
 
 function submit(type) {
     form.type = type;
@@ -298,13 +321,16 @@ function submit(type) {
                     <h3 class="text-sm font-semibold text-gray-700">Saldos</h3>
                     <div v-for="group in bankGroups" :key="group.bank" class="mt-4 space-y-3 first:mt-3">
                         <div v-if="group.accounts.length > 0" class="rounded-md border border-gray-200 p-3">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                    {{ group.bank }}
-                                </span>
-                                <span class="text-xs font-semibold" :class="group.total < 0 ? 'text-red-600' : 'text-gray-700'">
-                                    {{ formatMoney(group.total) }}
-                                </span>
+                            <div class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                {{ group.bank }}
+                                <button
+                                    type="button"
+                                    title="Ver últimas transações"
+                                    class="flex h-4 w-4 items-center justify-center rounded-full border border-gray-400 text-[10px] font-bold normal-case text-gray-500 hover:border-indigo-600 hover:text-indigo-600"
+                                    @click="openRecent(group)"
+                                >
+                                    i
+                                </button>
                             </div>
                             <ul class="mt-1 divide-y divide-gray-100">
                                 <li
@@ -323,20 +349,26 @@ function submit(type) {
                                         {{ formatMoney(a.balance) }}
                                     </span>
                                 </li>
+                                <li class="flex items-center justify-between py-2 text-sm">
+                                    <span class="font-semibold text-gray-700">Total</span>
+                                    <span class="font-semibold" :class="group.total < 0 ? 'text-red-600' : 'text-gray-900'">
+                                        {{ formatMoney(group.total) }}
+                                    </span>
+                                </li>
                             </ul>
                         </div>
 
                         <div v-if="group.investmentAccounts.length > 0" class="rounded-md border border-gray-200 p-3">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-semibold uppercase tracking-wide text-indigo-500">
-                                    {{ group.bank }} · Investimentos
-                                </span>
-                                <span
-                                    class="text-xs font-semibold"
-                                    :class="group.investmentTotal < 0 ? 'text-red-600' : 'text-gray-700'"
+                            <div class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-indigo-500">
+                                {{ group.bank }} · Investimentos
+                                <button
+                                    type="button"
+                                    title="Ver últimas transações"
+                                    class="flex h-4 w-4 items-center justify-center rounded-full border border-indigo-400 text-[10px] font-bold normal-case text-indigo-500 hover:border-indigo-600 hover:text-indigo-700"
+                                    @click="openRecent(group)"
                                 >
-                                    {{ formatMoney(group.investmentTotal) }}
-                                </span>
+                                    i
+                                </button>
                             </div>
                             <ul class="mt-1 divide-y divide-gray-100">
                                 <li
@@ -355,6 +387,15 @@ function submit(type) {
                                         {{ formatMoney(a.balance) }}
                                     </span>
                                 </li>
+                                <li class="flex items-center justify-between py-2 text-sm">
+                                    <span class="font-semibold text-indigo-700">Total</span>
+                                    <span
+                                        class="font-semibold"
+                                        :class="group.investmentTotal < 0 ? 'text-red-600' : 'text-gray-900'"
+                                    >
+                                        {{ formatMoney(group.investmentTotal) }}
+                                    </span>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -365,4 +406,33 @@ function submit(type) {
             </div>
         </div>
     </AuthenticatedLayout>
+
+    <Modal :show="showRecentModal" max-width="md" @close="showRecentModal = false">
+        <div class="p-6">
+            <h2 class="text-lg font-medium text-gray-900">Últimas transações · {{ recentBankLabel }}</h2>
+
+            <p v-if="loadingRecent" class="mt-4 text-sm text-gray-500">Carregando...</p>
+
+            <ul v-else class="mt-4 divide-y divide-gray-100">
+                <li
+                    v-for="transaction in recentTransactions"
+                    :key="transaction.id"
+                    class="flex items-center justify-between py-2 text-sm"
+                >
+                    <div>
+                        <p class="text-gray-900">{{ transaction.description }}</p>
+                        <p class="text-xs text-gray-500">
+                            {{ formatDate(transaction.date.slice(0, 10)) }} · {{ transaction.account.name }}
+                        </p>
+                    </div>
+                    <span :class="transaction.type === 'income' ? 'text-green-600' : 'text-red-600'">
+                        {{ transaction.type === 'income' ? '+' : '-' }}{{ formatMoney(transaction.amount) }}
+                    </span>
+                </li>
+                <li v-if="recentTransactions.length === 0" class="py-4 text-sm text-gray-500">
+                    Nenhuma transação encontrada.
+                </li>
+            </ul>
+        </div>
+    </Modal>
 </template>
