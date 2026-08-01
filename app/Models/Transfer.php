@@ -76,4 +76,39 @@ class Transfer extends Model
             }
         );
     }
+
+    /**
+     * Update the transfer and keep its linked expense/income transactions
+     * in sync (account, amount, date and description on both legs).
+     */
+    public function updateBetween(array $attributes): void
+    {
+        $fromAccount = Account::findOrFail($attributes['from_account_id']);
+        $toAccount = Account::findOrFail($attributes['to_account_id']);
+        $description = $attributes['description'] ?: 'Transferência';
+
+        $this->update([
+            'from_account_id' => $fromAccount->id,
+            'to_account_id' => $toAccount->id,
+            'amount' => $attributes['amount'],
+            'date' => $attributes['date'],
+            'description' => $attributes['description'] ?? null,
+        ]);
+
+        $this->transactions()->where('type', TransactionType::Expense)->update([
+            'account_id' => $fromAccount->id,
+            'person_id' => $fromAccount->person_id,
+            'description' => $description,
+            'amount' => $attributes['amount'],
+            'date' => $attributes['date'],
+        ]);
+
+        $this->transactions()->where('type', TransactionType::Income)->update([
+            'account_id' => $toAccount->id,
+            'person_id' => $toAccount->person_id,
+            'description' => $description,
+            'amount' => $attributes['amount'],
+            'date' => $attributes['date'],
+        ]);
+    }
 }

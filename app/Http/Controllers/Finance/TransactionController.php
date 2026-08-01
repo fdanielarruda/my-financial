@@ -59,7 +59,10 @@ class TransactionController extends Controller
     public function index(Request $request): Response
     {
         $transactions = Transaction::query()
-            ->with(['account.institution', 'category', 'person'])
+            ->with([
+                'account.institution', 'category', 'person',
+                'transfer.fromAccount.institution', 'transfer.toAccount.institution',
+            ])
             ->when($request->filled('account_id'), fn ($q) => $q->where('account_id', $request->integer('account_id')))
             ->when($request->filled('institution_id'), fn ($q) => $q->whereHas(
                 'account',

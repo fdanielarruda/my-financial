@@ -25,7 +25,7 @@ Route::middleware(['auth', 'verified'])->prefix('finance')->name('finance.')->gr
 
     Route::get('summary', [SummaryController::class, 'index'])->name('summary.index');
 
-    Route::resource('transfers', TransferController::class)->only(['index', 'store', 'destroy'])->names('transfers');
+    Route::resource('transfers', TransferController::class)->only(['index', 'store', 'update', 'destroy'])->names('transfers');
 
     Route::resource('recurring', RecurringTransactionController::class)->except(['show', 'create', 'edit'])->names('recurring');
 

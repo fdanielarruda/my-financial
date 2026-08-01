@@ -108,6 +108,11 @@ watch(
 );
 
 function openEdit(transaction) {
+    if (transaction.transfer_id) {
+        openEditTransfer(transaction);
+        return;
+    }
+
     editing.value = transaction;
     editSelectedBank.value = accountBankKey(transaction.account);
     editForm.account_id = transaction.account.id;
@@ -126,6 +131,59 @@ function submitEdit() {
     editForm.put(route('finance.transactions.update', editing.value.id), {
         preserveScroll: true,
         onSuccess: () => (showEditModal.value = false),
+    });
+}
+
+const showEditTransferModal = ref(false);
+const editingTransfer = ref(null);
+
+const editTransferForm = useForm({
+    from_account_id: '',
+    to_account_id: '',
+    amount: '',
+    date: '',
+    description: '',
+});
+
+const editTransferFromBank = ref('');
+const editTransferToBank = ref('');
+
+const editTransferAccountsForFromBank = computed(() =>
+    props.accounts.filter((a) => accountBankKey(a) === editTransferFromBank.value)
+);
+const editTransferAccountsForToBank = computed(() =>
+    props.accounts.filter((a) => accountBankKey(a) === editTransferToBank.value)
+);
+
+watch(editTransferFromBank, () => {
+    if (!editTransferAccountsForFromBank.value.some((a) => a.id === Number(editTransferForm.from_account_id))) {
+        editTransferForm.from_account_id = editTransferAccountsForFromBank.value[0]?.id ?? '';
+    }
+});
+
+watch(editTransferToBank, () => {
+    if (!editTransferAccountsForToBank.value.some((a) => a.id === Number(editTransferForm.to_account_id))) {
+        editTransferForm.to_account_id = editTransferAccountsForToBank.value[0]?.id ?? '';
+    }
+});
+
+function openEditTransfer(transaction) {
+    editingTransfer.value = transaction.transfer_id;
+    editTransferFromBank.value = accountBankKey(transaction.transfer.from_account);
+    editTransferToBank.value = accountBankKey(transaction.transfer.to_account);
+    editTransferForm.from_account_id = transaction.transfer.from_account.id;
+    editTransferForm.to_account_id = transaction.transfer.to_account.id;
+    editTransferForm.amount = transaction.transfer.amount;
+    editTransferForm.date = transaction.transfer.date.slice(0, 10);
+    editTransferForm.description = transaction.transfer.description ?? '';
+    editTransferForm.clearErrors();
+    showEditTransferModal.value = true;
+}
+
+function submitEditTransfer() {
+    editTransferForm.put(route('finance.transfers.update', editingTransfer.value), {
+        preserveScroll: true,
+        onSuccess: () => (showEditTransferModal.value = false),
     });
 }
 
@@ -246,11 +304,7 @@ const groupedByDay = computed(() => {
                                     <span :class="transaction.type === 'income' ? 'text-green-600' : 'text-red-600'">
                                         {{ transaction.type === 'income' ? '+' : '-' }}{{ formatMoney(transaction.amount) }}
                                     </span>
-                                    <button
-                                        v-if="!transaction.transfer_id"
-                                        class="text-sm text-indigo-600 hover:text-indigo-900"
-                                        @click="openEdit(transaction)"
-                                    >
+                                    <button class="text-sm text-indigo-600 hover:text-indigo-900" @click="openEdit(transaction)">
                                         Editar
                                     </button>
                                     <button class="text-sm text-red-600 hover:text-red-900" @click="destroyTransaction(transaction)">
@@ -352,6 +406,85 @@ const groupedByDay = computed(() => {
             <div class="mt-6 flex justify-end gap-3">
                 <SecondaryButton @click="showEditModal = false">Cancelar</SecondaryButton>
                 <PrimaryButton :disabled="editForm.processing">Salvar</PrimaryButton>
+            </div>
+        </form>
+    </Modal>
+
+    <Modal :show="showEditTransferModal" max-width="lg" @close="showEditTransferModal = false">
+        <form class="p-6" @submit.prevent="submitEditTransfer">
+            <h2 class="text-lg font-medium text-gray-900">Editar transferência</h2>
+
+            <div class="mt-6 space-y-4">
+                <div>
+                    <InputLabel value="De" />
+                    <div class="mt-1 grid grid-cols-2 gap-4">
+                        <SelectInput v-model="editTransferFromBank" class="block w-full">
+                            <option v-for="b in editBanks" :key="b.key" :value="b.key">{{ b.label }}</option>
+                        </SelectInput>
+                        <div>
+                            <SelectInput id="edit_transfer_from" v-model="editTransferForm.from_account_id" class="block w-full">
+                                <option v-for="a in editTransferAccountsForFromBank" :key="a.id" :value="a.id">
+                                    {{ a.name }}
+                                </option>
+                            </SelectInput>
+                            <InputError class="mt-2" :message="editTransferForm.errors.from_account_id" />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <InputLabel value="Para" />
+                    <div class="mt-1 grid grid-cols-2 gap-4">
+                        <SelectInput v-model="editTransferToBank" class="block w-full">
+                            <option v-for="b in editBanks" :key="b.key" :value="b.key">{{ b.label }}</option>
+                        </SelectInput>
+                        <div>
+                            <SelectInput id="edit_transfer_to" v-model="editTransferForm.to_account_id" class="block w-full">
+                                <option v-for="a in editTransferAccountsForToBank" :key="a.id" :value="a.id">
+                                    {{ a.name }}
+                                </option>
+                            </SelectInput>
+                            <InputError class="mt-2" :message="editTransferForm.errors.to_account_id" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <InputLabel for="edit_transfer_amount" value="Valor" />
+                        <TextInput
+                            id="edit_transfer_amount"
+                            v-model="editTransferForm.amount"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            class="mt-1 block w-full"
+                            required
+                        />
+                        <InputError class="mt-2" :message="editTransferForm.errors.amount" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="edit_transfer_date" value="Data" />
+                        <TextInput id="edit_transfer_date" v-model="editTransferForm.date" type="date" class="mt-1 block w-full" required />
+                        <InputError class="mt-2" :message="editTransferForm.errors.date" />
+                    </div>
+                </div>
+
+                <div>
+                    <InputLabel for="edit_transfer_description" value="Descrição (opcional)" />
+                    <TextInput
+                        id="edit_transfer_description"
+                        v-model="editTransferForm.description"
+                        class="mt-1 block w-full"
+                    />
+                    <InputError class="mt-2" :message="editTransferForm.errors.description" />
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+                <SecondaryButton @click="showEditTransferModal = false">Cancelar</SecondaryButton>
+                <PrimaryButton :disabled="editTransferForm.processing">Salvar</PrimaryButton>
             </div>
         </form>
     </Modal>
