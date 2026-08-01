@@ -13,6 +13,7 @@ use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -55,6 +56,19 @@ class CreditCardInvoiceController extends Controller
                 ->get(),
             'categories' => Category::orderBy('name')->get(),
         ]);
+    }
+
+    public function pay(Request $request, CreditCardInvoice $invoice): RedirectResponse
+    {
+        $this->authorizeInvoice($request, $invoice);
+
+        $data = $request->validate([
+            'date' => ['nullable', 'date'],
+        ]);
+
+        $invoice->pay(isset($data['date']) ? Carbon::parse($data['date']) : null);
+
+        return Redirect::back();
     }
 
     public function storePurchase(Request $request, CreditCard $creditCard): RedirectResponse

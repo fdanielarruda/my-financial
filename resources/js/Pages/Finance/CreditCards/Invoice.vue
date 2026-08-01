@@ -37,6 +37,18 @@ function monthLabel(dateString) {
     });
 }
 
+/* ---------- Pagar fatura ---------- */
+
+const payForm = useForm({});
+
+function payInvoice() {
+    if (!confirm('Pagar esta fatura? Será lançada uma transação de "Pagamento de Fatura" em cada conta usada nas compras.')) {
+        return;
+    }
+
+    payForm.post(route('finance.invoices.pay', props.invoice.id), { preserveScroll: true });
+}
+
 /* ---------- Nova compra ---------- */
 
 const form = useForm({
@@ -221,8 +233,15 @@ const groupedByDay = computed(() => {
                         <p class="mt-1 text-3xl font-semibold text-gray-900">{{ formatMoney(invoice.total) }}</p>
                     </div>
                     <div class="rounded-lg bg-white p-5 shadow">
-                        <p class="text-sm text-gray-500">Status</p>
-                        <p class="mt-1 text-3xl font-semibold text-gray-900">{{ invoiceStatusLabels[invoice.status] }}</p>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500">Status</p>
+                                <p class="mt-1 text-3xl font-semibold text-gray-900">{{ invoiceStatusLabels[invoice.status] }}</p>
+                            </div>
+                            <PrimaryButton v-if="invoice.status !== 'paid'" :disabled="payForm.processing" @click="payInvoice">
+                                Pagar fatura
+                            </PrimaryButton>
+                        </div>
                     </div>
                 </div>
 

@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'user_id', 'account_id', 'person_id', 'category_id', 'credit_card_invoice_id', 'recurring_transaction_id',
-    'transfer_id', 'type', 'description', 'is_unknown', 'reversed', 'amount', 'date',
+    'invoice_payment_id', 'transfer_id', 'type', 'description', 'is_unknown', 'reversed', 'amount', 'date',
     'installment_group_id', 'installment_number', 'installment_total', 'is_recurring',
 ])]
 class Transaction extends Model
@@ -55,6 +55,11 @@ class Transaction extends Model
     public function recurringTransaction(): BelongsTo
     {
         return $this->belongsTo(RecurringTransaction::class);
+    }
+
+    public function invoicePayment(): BelongsTo
+    {
+        return $this->belongsTo(CreditCardInvoice::class, 'invoice_payment_id');
     }
 
     public function transfer(): BelongsTo

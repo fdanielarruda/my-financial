@@ -18,7 +18,7 @@ class CreditCardInvoicePaymentTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_paying_an_invoice_debits_the_payment_account_and_marks_it_paid(): void
+    public function test_paying_an_invoice_debits_each_account_that_funded_a_purchase(): void
     {
         $user = User::factory()->create();
         $person = Person::factory()->for($user)->create();
@@ -26,46 +26,71 @@ class CreditCardInvoicePaymentTest extends TestCase
             'type' => AccountType::Checking,
             'initial_balance' => 1000,
         ]);
-        $cardAccount = Account::factory()->for($user)->for($person)->creditCard()->create();
-        $creditCard = CreditCard::factory()->for($cardAccount)->create([
-            'closing_day' => 20,
-            'due_day' => 27,
-            'payment_account_id' => $checking->id,
+        $savings = Account::factory()->for($user)->for($person)->create([
+            'type' => AccountType::Savings,
+            'initial_balance' => 500,
         ]);
+        $cardAccount = Account::factory()->for($user)->for($person)->creditCard()->create();
+        $creditCard = CreditCard::factory()->for($cardAccount)->create(['closing_day' => 20, 'due_day' => 27]);
 
-        Transaction::createPurchase([
+        $invoice = $creditCard->resolveInvoiceFor(Carbon::parse('2026-07-05'));
+
+        Transaction::createInstallmentsForInvoice([
             'user_id' => $user->id,
-            'account_id' => $cardAccount->id,
+            'account_id' => $checking->id,
             'person_id' => $person->id,
             'type' => TransactionType::Expense,
             'description' => 'Supermercado',
             'amount' => 250,
             'date' => Carbon::parse('2026-07-05'),
-        ]);
+        ], $invoice, 1, 1);
 
-        $invoice = $creditCard->resolveInvoiceFor(Carbon::parse('2026-07-05'));
-        $this->assertSame('250.00', $invoice->total());
+        Transaction::createInstallmentsForInvoice([
+            'user_id' => $user->id,
+            'account_id' => $savings->id,
+            'person_id' => $person->id,
+            'type' => TransactionType::Expense,
+            'description' => 'Presente',
+            'amount' => 100,
+            'date' => Carbon::parse('2026-07-06'),
+        ], $invoice, 1, 1);
 
-        $paymentTransaction = $invoice->pay($checking, Carbon::parse('2026-07-21'));
+        $this->assertSame('1000.00', $checking->balance());
+        $this->assertSame('500.00', $savings->balance());
+
+        $payments = $invoice->pay(Carbon::parse('2026-07-21'));
 
         $invoice->refresh();
         $this->assertSame(InvoiceStatus::Paid, $invoice->status);
-        $this->assertSame($paymentTransaction->id, $invoice->paid_transaction_id);
+        $this->assertCount(2, $payments);
+        $this->assertTrue($payments->every(fn (Transaction $t) => $t->description === 'Pagamento de Fatura'));
+
         $this->assertSame('750.00', $checking->balance());
+        $this->assertSame('400.00', $savings->balance());
     }
 
     public function test_paying_an_already_paid_invoice_throws(): void
     {
         $user = User::factory()->create();
         $person = Person::factory()->for($user)->create();
-        $checking = Account::factory()->for($user)->for($person)->create(['initial_balance' => 500]);
+        $account = Account::factory()->for($user)->for($person)->create(['initial_balance' => 500]);
         $cardAccount = Account::factory()->for($user)->for($person)->creditCard()->create();
         $creditCard = CreditCard::factory()->for($cardAccount)->create(['closing_day' => 20, 'due_day' => 27]);
         $invoice = $creditCard->resolveInvoiceFor(Carbon::parse('2026-07-05'));
 
-        $invoice->pay($checking);
+        Transaction::createInstallmentsForInvoice([
+            'user_id' => $user->id,
+            'account_id' => $account->id,
+            'person_id' => $person->id,
+            'type' => TransactionType::Expense,
+            'description' => 'Cinema',
+            'amount' => 45,
+            'date' => Carbon::parse('2026-07-05'),
+        ], $invoice, 1, 1);
+
+        $invoice->pay();
 
         $this->expectException(\RuntimeException::class);
-        $invoice->pay($checking);
+        $invoice->pay();
     }
 }
