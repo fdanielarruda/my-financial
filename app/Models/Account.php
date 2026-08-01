@@ -60,19 +60,15 @@ class Account extends Model
 
     /**
      * Current balance for non credit-card accounts: initial balance plus
-     * every income/expense transaction and every transfer in or out.
+     * every income/expense transaction. Transfers are represented as a
+     * linked expense/income transaction pair, so they're already included.
      */
     public function balance(): string
     {
         $income = $this->transactions()->where('type', TransactionType::Income)->sum('amount');
         $expense = $this->transactions()->where('type', TransactionType::Expense)->sum('amount');
-        $transfersIn = $this->incomingTransfers()->sum('amount');
-        $transfersOut = $this->outgoingTransfers()->sum('amount');
 
-        return Money::add(
-            Money::add($this->initial_balance, Money::sub($income, $expense)),
-            Money::sub($transfersIn, $transfersOut)
-        );
+        return Money::add($this->initial_balance, Money::sub($income, $expense));
     }
 
     /**

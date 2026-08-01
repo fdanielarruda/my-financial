@@ -23,9 +23,12 @@ class TransferController extends Controller
 
     public function store(StoreTransferRequest $request): RedirectResponse
     {
-        $request->user()->transfers()->create($request->validated());
+        Transfer::createBetween([
+            ...$request->validated(),
+            'user_id' => $request->user()->id,
+        ]);
 
-        return Redirect::route('finance.transfers.index');
+        return Redirect::back();
     }
 
     public function destroy(Transfer $transfer): RedirectResponse

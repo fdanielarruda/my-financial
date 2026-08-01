@@ -100,6 +100,12 @@ class TransactionController extends Controller
 
     public function update(StoreTransactionRequest $request, Transaction $transaction): RedirectResponse
     {
+        if ($transaction->transfer_id) {
+            return Redirect::back()->withErrors([
+                'description' => 'Transações de transferência não podem ser editadas. Remova a transferência e crie novamente.',
+            ]);
+        }
+
         $data = $request->validated();
         $isUnknown = (bool) ($data['is_unknown'] ?? false);
 
@@ -119,7 +125,11 @@ class TransactionController extends Controller
 
     public function destroy(Transaction $transaction): RedirectResponse
     {
-        $transaction->delete();
+        if ($transaction->transfer_id) {
+            $transaction->transfer()->delete();
+        } else {
+            $transaction->delete();
+        }
 
         return Redirect::back();
     }

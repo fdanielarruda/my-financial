@@ -7,6 +7,7 @@ import SelectInput from '@/Components/SelectInput.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { formatDate, formatMoney } from '@/finance';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const props = defineProps({
     transfers: Object,
@@ -35,6 +36,22 @@ function destroy(transfer) {
         useForm({}).delete(route('finance.transfers.destroy', transfer.id), { preserveScroll: true });
     }
 }
+
+const groupedByDay = computed(() => {
+    const groups = new Map();
+
+    for (const transfer of props.transfers.data) {
+        const key = transfer.date.slice(0, 10);
+
+        if (!groups.has(key)) {
+            groups.set(key, { date: key, transfers: [] });
+        }
+
+        groups.get(key).transfers.push(transfer);
+    }
+
+    return [...groups.values()].sort((a, b) => b.date.localeCompare(a.date));
+});
 </script>
 
 <template>
@@ -94,28 +111,36 @@ function destroy(transfer) {
                 </div>
 
                 <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                    <ul class="divide-y divide-gray-200">
-                        <li
-                            v-for="transfer in transfers.data"
-                            :key="transfer.id"
-                            class="flex items-center justify-between px-4 py-3 sm:px-6"
-                        >
-                            <div>
-                                <p class="text-gray-900">
-                                    {{ transfer.from_account.name }} → {{ transfer.to_account.name }}
-                                    <span v-if="transfer.description" class="text-xs text-gray-500">({{ transfer.description }})</span>
-                                </p>
-                                <p class="text-xs text-gray-500">{{ formatDate(transfer.date) }}</p>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <span class="text-gray-900">{{ formatMoney(transfer.amount) }}</span>
-                                <button class="text-sm text-red-600 hover:text-red-900" @click="destroy(transfer)">Remover</button>
-                            </div>
-                        </li>
-                        <li v-if="transfers.data.length === 0" class="px-4 py-6 text-sm text-gray-500">
-                            Nenhuma transferência ainda.
-                        </li>
-                    </ul>
+                    <div v-for="group in groupedByDay" :key="group.date">
+                        <div class="bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 sm:px-6">
+                            {{ formatDate(group.date) }}
+                        </div>
+                        <ul class="divide-y divide-gray-200">
+                            <li
+                                v-for="transfer in group.transfers"
+                                :key="transfer.id"
+                                class="flex items-center justify-between px-4 py-3 sm:px-6"
+                            >
+                                <div>
+                                    <p class="text-gray-900">
+                                        {{ transfer.description || 'Transferência' }}
+                                    </p>
+                                    <p class="text-xs text-gray-500">
+                                        {{ transfer.from_account.name }} → {{ transfer.to_account.name }}
+                                    </p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-gray-900">{{ formatMoney(transfer.amount) }}</span>
+                                    <button class="text-sm text-red-600 hover:text-red-900" @click="destroy(transfer)">
+                                        Remover
+                                    </button>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                    <p v-if="transfers.data.length === 0" class="px-4 py-6 text-sm text-gray-500 sm:px-6">
+                        Nenhuma transferência ainda.
+                    </p>
 
                     <div v-if="transfers.links.length > 3" class="flex flex-wrap gap-2 border-t px-4 py-3 sm:px-6">
                         <Link

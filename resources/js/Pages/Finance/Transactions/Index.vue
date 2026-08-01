@@ -138,6 +138,12 @@ const groupedByDay = computed(() => {
                                         <span v-if="transaction.installment_total" class="text-xs text-gray-500">
                                             ({{ transaction.installment_number }}/{{ transaction.installment_total }})
                                         </span>
+                                        <span
+                                            v-if="transaction.transfer_id"
+                                            class="ml-1 rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-indigo-700"
+                                        >
+                                            Transferência
+                                        </span>
                                     </p>
                                     <p class="text-xs text-gray-500">
                                         {{ bankLabel(transaction) }} / {{ transaction.account.name }}
@@ -148,7 +154,11 @@ const groupedByDay = computed(() => {
                                     <span :class="transaction.type === 'income' ? 'text-green-600' : 'text-red-600'">
                                         {{ transaction.type === 'income' ? '+' : '-' }}{{ formatMoney(transaction.amount) }}
                                     </span>
-                                    <button class="text-sm text-indigo-600 hover:text-indigo-900" @click="openEdit(transaction)">
+                                    <button
+                                        v-if="!transaction.transfer_id"
+                                        class="text-sm text-indigo-600 hover:text-indigo-900"
+                                        @click="openEdit(transaction)"
+                                    >
                                         Editar
                                     </button>
                                     <button class="text-sm text-red-600 hover:text-red-900" @click="destroyTransaction(transaction)">

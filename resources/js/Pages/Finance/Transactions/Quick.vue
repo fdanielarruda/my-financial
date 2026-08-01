@@ -112,7 +112,13 @@ function submitTransfer() {
     transferForm.description = form.description;
     transferForm.date = form.date;
 
-    transferForm.post(route('finance.transfers.store'), { preserveScroll: true });
+    transferForm.post(route('finance.transfers.store'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            form.reset('amount', 'description');
+            transferForm.reset('amount', 'description', 'to_account_id');
+        },
+    });
 }
 
 const bankGroups = computed(() => {

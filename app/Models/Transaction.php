@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'user_id', 'account_id', 'person_id', 'category_id', 'credit_card_invoice_id', 'recurring_transaction_id',
-    'type', 'description', 'is_unknown', 'amount', 'date',
+    'transfer_id', 'type', 'description', 'is_unknown', 'amount', 'date',
     'installment_group_id', 'installment_number', 'installment_total',
 ])]
 class Transaction extends Model
@@ -56,6 +56,11 @@ class Transaction extends Model
     public function recurringTransaction(): BelongsTo
     {
         return $this->belongsTo(RecurringTransaction::class);
+    }
+
+    public function transfer(): BelongsTo
+    {
+        return $this->belongsTo(Transfer::class);
     }
 
     /**
