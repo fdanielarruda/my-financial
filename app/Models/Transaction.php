@@ -2,21 +2,18 @@
 
 namespace App\Models;
 
-use App\Enums\AccountType;
 use App\Enums\TransactionType;
 use App\Support\BelongsToUser;
-use App\Support\Money;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 #[Fillable([
     'user_id', 'account_id', 'person_id', 'category_id', 'credit_card_invoice_id', 'recurring_transaction_id',
-    'transfer_id', 'type', 'description', 'is_unknown', 'amount', 'date',
+    'transfer_id', 'type', 'description', 'is_unknown', 'reversed', 'amount', 'date',
     'installment_group_id', 'installment_number', 'installment_total',
 ])]
 class Transaction extends Model
@@ -30,6 +27,7 @@ class Transaction extends Model
             'amount' => 'decimal:2',
             'date' => 'date',
             'is_unknown' => 'boolean',
+            'reversed' => 'boolean',
         ];
     }
 
@@ -64,45 +62,53 @@ class Transaction extends Model
     }
 
     /**
-     * Create a transaction (or, for a credit-card purchase with more than one
-     * installment, one transaction per installment, each attached to the
-     * invoice its installment month resolves to).
+     * Create a plain account transaction (checking/savings/wallet/investment).
+     * Credit-card purchases are created separately via
+     * createInstallmentsForInvoice(), since cards are no longer accounts.
      *
      * @return Collection<int, Transaction>
      */
-    public static function createPurchase(array $attributes, int $installments = 1): Collection
+    public static function createPurchase(array $attributes): Collection
     {
         $account = Account::findOrFail($attributes['account_id']);
-        $date = Carbon::parse($attributes['date']);
-        $totalAmount = (string) $attributes['amount'];
 
-        if ($account->type !== AccountType::CreditCard || $installments <= 1) {
-            $transaction = $account->transactions()->create([
-                ...$attributes,
-                'credit_card_invoice_id' => $account->type === AccountType::CreditCard
-                    ? $account->creditCard->resolveInvoiceFor($date)->id
-                    : null,
-            ]);
+        $transaction = $account->transactions()->create($attributes);
 
-            return new Collection([$transaction]);
-        }
+        return new Collection([$transaction]);
+    }
 
-        $groupId = (string) Str::ulid();
-        $amounts = Money::splitEvenly($totalAmount, $installments);
+    /**
+     * Create a credit-card purchase anchored on the installment currently
+     * visible on a given invoice (e.g. "I'm looking at 5/10 on March's
+     * invoice"): fans out the remaining installments to past/future invoices,
+     * creating those invoices as needed. Each installment keeps its own
+     * amount (as typed, matching what the bank statement shows).
+     *
+     * @return Collection<int, Transaction>
+     */
+    public static function createInstallmentsForInvoice(
+        array $attributes,
+        CreditCardInvoice $anchorInvoice,
+        int $installmentNumber,
+        int $installmentTotal
+    ): Collection {
+        $account = Account::findOrFail($attributes['account_id']);
+        $creditCard = $anchorInvoice->creditCard;
+        $groupId = $installmentTotal > 1 ? (string) Str::ulid() : null;
+        $anchorMonth = $anchorInvoice->reference_month;
 
-        return collect(range(1, $installments))->map(function (int $number) use (
-            $account, $attributes, $date, $installments, $groupId, $amounts
+        return collect(range(1, $installmentTotal))->map(function (int $number) use (
+            $account, $attributes, $creditCard, $anchorMonth, $installmentNumber, $installmentTotal, $groupId
         ) {
-            $installmentDate = $date->copy()->addMonthsNoOverflow($number - 1);
-            $invoice = $account->creditCard->resolveInvoiceFor($installmentDate);
+            $invoiceMonth = $anchorMonth->copy()->addMonthsNoOverflow($number - $installmentNumber);
+            $invoice = $creditCard->invoiceForMonth($invoiceMonth);
 
             return $account->transactions()->create([
                 ...$attributes,
-                'amount' => $amounts[$number - 1],
                 'credit_card_invoice_id' => $invoice->id,
                 'installment_group_id' => $groupId,
-                'installment_number' => $number,
-                'installment_total' => $installments,
+                'installment_number' => $installmentTotal > 1 ? $number : null,
+                'installment_total' => $installmentTotal > 1 ? $installmentTotal : null,
             ]);
         });
     }

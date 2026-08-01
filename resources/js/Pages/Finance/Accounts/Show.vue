@@ -5,13 +5,12 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SelectInput from '@/Components/SelectInput.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { formatDate, formatMoney, invoiceStatusLabels } from '@/finance';
+import { formatDate, formatMoney } from '@/finance';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 
 const props = defineProps({
     account: Object,
     transactions: Object,
-    invoices: Array,
     categories: Array,
     people: Array,
 });
@@ -26,13 +25,12 @@ const form = useForm({
     description: '',
     amount: '',
     date: today,
-    installments: 1,
 });
 
 function submit() {
     form.post(route('finance.transactions.store'), {
         preserveScroll: true,
-        onSuccess: () => form.reset('description', 'amount', 'installments'),
+        onSuccess: () => form.reset('description', 'amount'),
     });
 }
 
@@ -58,42 +56,15 @@ function destroyTransaction(transaction) {
 
         <div class="py-12">
             <div class="mx-auto max-w-5xl space-y-6 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div class="rounded-lg bg-white p-5 shadow">
-                        <p class="text-sm text-gray-500">{{ account.type === 'credit_card' ? 'Fatura aberta' : 'Saldo atual' }}</p>
-                        <p class="text-2xl font-semibold text-gray-900">
-                            {{ formatMoney(account.type === 'credit_card' ? account.open_invoice_total : account.balance) }}
-                        </p>
-                    </div>
-                    <div v-if="account.type === 'credit_card'" class="rounded-lg bg-white p-5 shadow">
-                        <p class="text-sm text-gray-500">Limite disponível</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ formatMoney(account.available_limit) }}</p>
+                        <p class="text-sm text-gray-500">Saldo atual</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ formatMoney(account.balance) }}</p>
                     </div>
                     <div class="rounded-lg bg-white p-5 shadow">
                         <p class="text-sm text-gray-500">Dono</p>
                         <p class="text-2xl font-semibold text-gray-900">{{ account.person.name }}</p>
                     </div>
-                </div>
-
-                <div v-if="account.type === 'credit_card'" class="overflow-hidden bg-white shadow sm:rounded-lg">
-                    <h3 class="border-b px-4 py-3 font-medium text-gray-900 sm:px-6">Faturas</h3>
-                    <ul class="divide-y divide-gray-200">
-                        <li v-for="invoice in invoices" :key="invoice.id" class="flex items-center justify-between px-4 py-3 sm:px-6">
-                            <Link :href="route('finance.invoices.show', invoice.id)" class="text-indigo-600 hover:text-indigo-900">
-                                {{ formatDate(invoice.reference_month) }} · {{ invoice.transactions_count }} lançamento(s)
-                            </Link>
-                            <span
-                                class="rounded px-2 py-0.5 text-xs"
-                                :class="{
-                                    'bg-yellow-100 text-yellow-800': invoice.status === 'open',
-                                    'bg-gray-100 text-gray-800': invoice.status === 'closed',
-                                    'bg-green-100 text-green-800': invoice.status === 'paid',
-                                }"
-                            >
-                                {{ invoiceStatusLabels[invoice.status] }}
-                            </span>
-                        </li>
-                    </ul>
                 </div>
 
                 <div class="overflow-hidden bg-white p-5 shadow sm:rounded-lg">
@@ -138,11 +109,6 @@ function destroyTransaction(transaction) {
                                 <option value="">Sem categoria</option>
                                 <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
                             </SelectInput>
-                        </div>
-
-                        <div v-if="account.type === 'credit_card'">
-                            <InputLabel for="installments" value="Parcelas" />
-                            <TextInput id="installments" v-model="form.installments" type="number" min="1" max="48" class="mt-1 block w-full" />
                         </div>
 
                         <div class="col-span-2 flex items-end sm:col-span-1">

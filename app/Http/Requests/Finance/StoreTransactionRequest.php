@@ -34,7 +34,6 @@ class StoreTransactionRequest extends FormRequest
             'description' => [Rule::requiredIf(! $this->boolean('is_unknown')), 'nullable', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'date' => ['required', 'date'],
-            'installments' => ['nullable', 'integer', 'between:1,48'],
         ];
     }
 }

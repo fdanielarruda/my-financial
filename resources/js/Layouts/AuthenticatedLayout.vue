@@ -20,6 +20,11 @@ const mainLinks = [
         route: 'finance.transactions.index',
         active: ['finance.transactions.index', 'finance.transactions.create', 'finance.transactions.edit'],
     },
+    {
+        label: 'Cartões de crédito',
+        route: 'finance.credit-cards.index',
+        active: ['finance.credit-cards.index', 'finance.invoices.show'],
+    },
     { label: 'Importar fatura', route: 'finance.statement-imports.create', active: 'finance.statement-imports.*' },
     { label: 'Transferências', route: 'finance.transfers.index', active: 'finance.transfers.*' },
     { label: 'Recorrências', route: 'finance.recurring.index', active: 'finance.recurring.*' },

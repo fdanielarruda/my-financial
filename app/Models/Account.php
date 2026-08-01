@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\AccountType;
-use App\Enums\InvoiceStatus;
 use App\Enums\TransactionType;
 use App\Support\BelongsToUser;
 use App\Support\Money;
@@ -12,7 +11,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable(['user_id', 'person_id', 'institution_id', 'name', 'type', 'initial_balance', 'archived_at'])]
 class Account extends Model
@@ -38,11 +36,6 @@ class Account extends Model
         return $this->belongsTo(Institution::class);
     }
 
-    public function creditCard(): HasOne
-    {
-        return $this->hasOne(CreditCard::class);
-    }
-
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class);
@@ -59,41 +52,17 @@ class Account extends Model
     }
 
     /**
-     * Current balance for non credit-card accounts: initial balance plus
-     * every income/expense transaction. Transfers are represented as a
-     * linked expense/income transaction pair, so they're already included.
+     * Current balance: initial balance plus every income/expense
+     * transaction. Transfers are represented as a linked expense/income
+     * transaction pair, so they're already included. Credit-card purchases
+     * attributed to this account are excluded — they only hit the balance
+     * when the invoice is actually paid (a separate real transaction).
      */
     public function balance(): string
     {
-        $income = $this->transactions()->where('type', TransactionType::Income)->sum('amount');
-        $expense = $this->transactions()->where('type', TransactionType::Expense)->sum('amount');
+        $income = $this->transactions()->where('type', TransactionType::Income)->whereNull('credit_card_invoice_id')->sum('amount');
+        $expense = $this->transactions()->where('type', TransactionType::Expense)->whereNull('credit_card_invoice_id')->sum('amount');
 
         return Money::add($this->initial_balance, Money::sub($income, $expense));
-    }
-
-    /**
-     * Total of the currently open invoice for a credit-card account.
-     */
-    public function openInvoiceTotal(): string
-    {
-        $invoice = $this->creditCard?->currentInvoice();
-
-        return $invoice ? $invoice->total() : '0.00';
-    }
-
-    public function availableLimit(): string
-    {
-        $creditCard = $this->creditCard;
-
-        if (! $creditCard) {
-            return '0.00';
-        }
-
-        $unpaidTotal = $creditCard->invoices()
-            ->where('status', '!=', InvoiceStatus::Paid)
-            ->get()
-            ->reduce(fn ($carry, $invoice) => Money::add($carry, $invoice->total()), '0.00');
-
-        return Money::sub($creditCard->credit_limit, $unpaidTotal);
     }
 }

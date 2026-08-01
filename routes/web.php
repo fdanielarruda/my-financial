@@ -3,6 +3,7 @@
 use App\Enums\AccountType;
 use App\Http\Controllers\ProfileController;
 use App\Models\Account;
+use App\Models\CreditCard;
 use App\Models\RecurringTransaction;
 use App\Support\Money;
 use Illuminate\Foundation\Application;
@@ -27,12 +28,17 @@ Route::get('/dashboard', function () {
         ->groupBy(fn (Account $account) => $account->person->name)
         ->map(fn ($group) => $group->reduce(fn ($carry, Account $account) => Money::add($carry, $account->balance()), '0.00'));
 
-    $openInvoices = $accounts
-        ->filter(fn (Account $account) => $account->type === AccountType::CreditCard)
-        ->map(fn (Account $account) => [
-            'account' => $account->only(['id', 'name']),
-            'total' => $account->openInvoiceTotal(),
-        ])
+    $openInvoices = CreditCard::where('user_id', auth()->id())
+        ->get()
+        ->map(function (CreditCard $card) {
+            $invoice = $card->currentInvoice();
+
+            return [
+                'card' => ['id' => $card->id, 'name' => $card->name],
+                'invoice_id' => $invoice?->id,
+                'total' => $card->openInvoiceTotal(),
+            ];
+        })
         ->filter(fn ($invoice) => Money::compare($invoice['total'], '0.00') === 1)
         ->values();
 

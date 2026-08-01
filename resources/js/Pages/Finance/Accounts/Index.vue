@@ -22,10 +22,6 @@ function bankLabel(account) {
     return account.institution?.name ?? 'Dinheiro / Sem instituição';
 }
 
-function accountValue(account) {
-    return account.type === 'credit_card' ? account.open_invoice_total : account.balance;
-}
-
 const bankGroups = computed(() => {
     const groups = new Map();
 
@@ -38,10 +34,7 @@ const bankGroups = computed(() => {
 
         const group = groups.get(key);
         group.accounts.push(account);
-
-        if (account.type !== 'credit_card') {
-            group.total += Number(account.balance ?? 0);
-        }
+        group.total += Number(account.balance ?? 0);
     }
 
     return [...groups.values()].sort((a, b) => a.bank.localeCompare(b.bank));
@@ -56,10 +49,6 @@ const form = useForm({
     name: '',
     type: 'checking',
     initial_balance: 0,
-    credit_limit: '',
-    closing_day: '',
-    due_day: '',
-    payment_account_id: '',
 });
 
 function openCreate() {
@@ -77,10 +66,6 @@ function openEdit(account) {
     form.name = account.name;
     form.type = account.type;
     form.initial_balance = account.initial_balance;
-    form.credit_limit = account.credit_card?.credit_limit ?? '';
-    form.closing_day = account.credit_card?.closing_day ?? '';
-    form.due_day = account.credit_card?.due_day ?? '';
-    form.payment_account_id = account.credit_card?.payment_account_id ?? '';
     form.clearErrors();
     showModal.value = true;
 }
@@ -130,7 +115,7 @@ function destroy(account) {
                                 <th class="px-4 py-2 sm:px-6">Conta</th>
                                 <th class="px-4 py-2 sm:px-6">Tipo</th>
                                 <th class="px-4 py-2 sm:px-6">Pessoa</th>
-                                <th class="px-4 py-2 text-right sm:px-6">Saldo / Fatura</th>
+                                <th class="px-4 py-2 text-right sm:px-6">Saldo</th>
                                 <th class="px-4 py-2 text-right sm:px-6">Ações</th>
                             </tr>
                         </thead>
@@ -149,13 +134,10 @@ function destroy(account) {
                                 <td class="px-4 py-3 text-right text-sm sm:px-6">
                                     <span
                                         class="font-medium"
-                                        :class="Number(accountValue(account)) < 0 ? 'text-red-600' : 'text-gray-900'"
+                                        :class="Number(account.balance) < 0 ? 'text-red-600' : 'text-gray-900'"
                                     >
-                                        {{ formatMoney(accountValue(account)) }}
+                                        {{ formatMoney(account.balance) }}
                                     </span>
-                                    <p v-if="account.type === 'credit_card'" class="text-xs text-gray-500">
-                                        Limite disponível: {{ formatMoney(account.available_limit) }}
-                                    </p>
                                 </td>
                                 <td class="px-4 py-3 text-right text-sm sm:px-6">
                                     <button class="text-indigo-600 hover:text-indigo-900" @click="openEdit(account)">Editar</button>
@@ -210,7 +192,7 @@ function destroy(account) {
                         <InputError class="mt-2" :message="form.errors.institution_id" />
                     </div>
 
-                    <div v-if="form.type !== 'credit_card'">
+                    <div>
                         <InputLabel for="initial_balance" value="Saldo inicial" />
                         <TextInput
                             id="initial_balance"
@@ -221,64 +203,6 @@ function destroy(account) {
                         />
                         <InputError class="mt-2" :message="form.errors.initial_balance" />
                     </div>
-
-                    <template v-if="form.type === 'credit_card'">
-                        <div>
-                            <InputLabel for="credit_limit" value="Limite" />
-                            <TextInput
-                                id="credit_limit"
-                                v-model="form.credit_limit"
-                                type="number"
-                                step="0.01"
-                                class="mt-1 block w-full"
-                                required
-                            />
-                            <InputError class="mt-2" :message="form.errors.credit_limit" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="payment_account_id" value="Conta pagadora da fatura" />
-                            <SelectInput id="payment_account_id" v-model="form.payment_account_id" class="mt-1 block w-full">
-                                <option value="">Selecionar depois</option>
-                                <option
-                                    v-for="a in accounts.filter((a) => a.type !== 'credit_card')"
-                                    :key="a.id"
-                                    :value="a.id"
-                                >
-                                    {{ a.name }} ({{ a.person.name }})
-                                </option>
-                            </SelectInput>
-                            <InputError class="mt-2" :message="form.errors.payment_account_id" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="closing_day" value="Dia de fechamento" />
-                            <TextInput
-                                id="closing_day"
-                                v-model="form.closing_day"
-                                type="number"
-                                min="1"
-                                max="31"
-                                class="mt-1 block w-full"
-                                required
-                            />
-                            <InputError class="mt-2" :message="form.errors.closing_day" />
-                        </div>
-
-                        <div>
-                            <InputLabel for="due_day" value="Dia de vencimento" />
-                            <TextInput
-                                id="due_day"
-                                v-model="form.due_day"
-                                type="number"
-                                min="1"
-                                max="31"
-                                class="mt-1 block w-full"
-                                required
-                            />
-                            <InputError class="mt-2" :message="form.errors.due_day" />
-                        </div>
-                    </template>
                 </div>
 
                 <div class="mt-6 flex justify-end gap-3">

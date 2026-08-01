@@ -49,14 +49,14 @@ defineProps({
                     <ul class="divide-y divide-gray-200">
                         <li
                             v-for="invoice in openInvoices"
-                            :key="invoice.account.id"
+                            :key="invoice.card.id"
                             class="flex items-center justify-between px-4 py-3 sm:px-6"
                         >
                             <Link
-                                :href="route('finance.accounts.show', invoice.account.id)"
+                                :href="route('finance.invoices.show', invoice.invoice_id)"
                                 class="text-indigo-600 hover:text-indigo-900"
                             >
-                                {{ invoice.account.name }}
+                                {{ invoice.card.name }}
                             </Link>
                             <span class="font-medium text-gray-900">{{ formatMoney(invoice.total) }}</span>
                         </li>

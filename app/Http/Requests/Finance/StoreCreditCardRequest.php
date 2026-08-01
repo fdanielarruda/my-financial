@@ -2,12 +2,11 @@
 
 namespace App\Http\Requests\Finance;
 
-use App\Enums\AccountType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreAccountRequest extends FormRequest
+class StoreCreditCardRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -27,14 +26,12 @@ class StoreAccountRequest extends FormRequest
         $userId = $this->user()->id;
 
         return [
-            'person_id' => ['required', Rule::exists('people', 'id')->where('user_id', $userId)],
-            'institution_id' => ['nullable', 'exists:institutions,id'],
+            'institution_id' => ['required', 'exists:institutions,id'],
             'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', Rule::in([
-                AccountType::Checking->value, AccountType::Savings->value,
-                AccountType::Wallet->value, AccountType::Investment->value,
-            ])],
-            'initial_balance' => ['required', 'numeric'],
+            'credit_limit' => ['required', 'numeric', 'min:0'],
+            'closing_day' => ['required', 'integer', 'between:1,31'],
+            'due_day' => ['required', 'integer', 'between:1,31'],
+            'payment_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('user_id', $userId)],
         ];
     }
 }

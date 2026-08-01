@@ -18,7 +18,8 @@ class AccountController extends Controller
 {
     public function index(): Response
     {
-        $accounts = Account::with(['person', 'institution', 'creditCard'])
+        $accounts = Account::with(['person', 'institution'])
+            ->where('type', '!=', AccountType::CreditCard)
             ->whereNull('archived_at')
             ->orderBy('name')
             ->get()
@@ -28,7 +29,9 @@ class AccountController extends Controller
             'accounts' => $accounts,
             'people' => Person::orderBy('name')->get(),
             'institutions' => Institution::orderBy('name')->get(),
-            'accountTypes' => collect(AccountType::cases())->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()]),
+            'accountTypes' => collect(AccountType::cases())
+                ->reject(fn ($t) => $t === AccountType::CreditCard)
+                ->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()]),
         ]);
     }
 
@@ -36,7 +39,7 @@ class AccountController extends Controller
     {
         $data = $request->validated();
 
-        $account = $request->user()->accounts()->create([
+        $request->user()->accounts()->create([
             'person_id' => $data['person_id'],
             'institution_id' => $data['institution_id'] ?? null,
             'name' => $data['name'],
@@ -44,35 +47,21 @@ class AccountController extends Controller
             'initial_balance' => $data['initial_balance'],
         ]);
 
-        if ($data['type'] === AccountType::CreditCard->value) {
-            $account->creditCard()->create([
-                'payment_account_id' => $data['payment_account_id'] ?? null,
-                'credit_limit' => $data['credit_limit'],
-                'closing_day' => $data['closing_day'],
-                'due_day' => $data['due_day'],
-            ]);
-        }
-
         return Redirect::route('finance.accounts.index');
     }
 
     public function show(Account $account): Response
     {
-        $account->load(['person', 'institution', 'creditCard']);
+        $account->load(['person', 'institution']);
 
         $transactions = $account->transactions()
             ->with(['category', 'person'])
             ->orderByDesc('date')
             ->paginate(25);
 
-        $invoices = $account->type === AccountType::CreditCard
-            ? $account->creditCard->invoices()->orderByDesc('reference_month')->withCount('transactions')->get()
-            : [];
-
         return Inertia::render('Finance/Accounts/Show', [
             'account' => $this->present($account),
             'transactions' => $transactions,
-            'invoices' => $invoices,
             'categories' => Category::orderBy('name')->get(),
             'people' => Person::orderBy('name')->get(),
         ]);
@@ -89,15 +78,6 @@ class AccountController extends Controller
             'type' => $data['type'],
             'initial_balance' => $data['initial_balance'],
         ]);
-
-        if ($data['type'] === AccountType::CreditCard->value) {
-            $account->creditCard()->updateOrCreate([], [
-                'payment_account_id' => $data['payment_account_id'] ?? null,
-                'credit_limit' => $data['credit_limit'],
-                'closing_day' => $data['closing_day'],
-                'due_day' => $data['due_day'],
-            ]);
-        }
 
         return Redirect::back();
     }
@@ -119,10 +99,7 @@ class AccountController extends Controller
             'person' => $account->person,
             'institution' => $account->institution,
             'initial_balance' => $account->initial_balance,
-            'balance' => $account->type !== AccountType::CreditCard ? $account->balance() : null,
-            'credit_card' => $account->creditCard,
-            'open_invoice_total' => $account->type === AccountType::CreditCard ? $account->openInvoiceTotal() : null,
-            'available_limit' => $account->type === AccountType::CreditCard ? $account->availableLimit() : null,
+            'balance' => $account->balance(),
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Finance\AccountController;
 use App\Http\Controllers\Finance\CategoryController;
+use App\Http\Controllers\Finance\CreditCardController;
 use App\Http\Controllers\Finance\CreditCardInvoiceController;
 use App\Http\Controllers\Finance\InstitutionController;
 use App\Http\Controllers\Finance\PersonController;
@@ -29,8 +30,14 @@ Route::middleware(['auth', 'verified'])->prefix('finance')->name('finance.')->gr
 
     Route::resource('recurring', RecurringTransactionController::class)->except(['show', 'create', 'edit'])->names('recurring');
 
+    Route::get('credit-cards', [CreditCardController::class, 'index'])->name('credit-cards.index');
+    Route::post('credit-cards', [CreditCardController::class, 'store'])->name('credit-cards.store');
+    Route::put('credit-cards/{creditCard}', [CreditCardController::class, 'update'])->name('credit-cards.update');
+
     Route::get('invoices/{invoice}', [CreditCardInvoiceController::class, 'show'])->name('invoices.show');
-    Route::post('invoices/{invoice}/pay', [CreditCardInvoiceController::class, 'pay'])->name('invoices.pay');
+    Route::post('credit-cards/{creditCard}/purchases', [CreditCardInvoiceController::class, 'storePurchase'])->name('purchases.store');
+    Route::put('installments/{transaction}', [CreditCardInvoiceController::class, 'updateInstallment'])->name('installments.update');
+    Route::post('installments/{transaction}/reverse', [CreditCardInvoiceController::class, 'toggleReversed'])->name('installments.reverse');
 
     Route::get('statement-imports/create', [StatementImportController::class, 'create'])->name('statement-imports.create');
     Route::post('statement-imports', [StatementImportController::class, 'upload'])->name('statement-imports.upload');

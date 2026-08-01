@@ -100,7 +100,7 @@ class TransactionController extends Controller
             'is_unknown' => $isUnknown,
             'amount' => $data['amount'],
             'date' => $data['date'],
-        ], installments: $data['installments'] ?? 1);
+        ]);
 
         return Redirect::back();
     }

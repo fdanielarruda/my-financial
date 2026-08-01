@@ -75,11 +75,6 @@ class RecurringTransaction extends Model
             'date' => $dueDate,
         ];
 
-        if ($account->type === \App\Enums\AccountType::CreditCard) {
-            $invoice = $account->creditCard->resolveInvoiceFor($dueDate);
-            $attributes['credit_card_invoice_id'] = $invoice->id;
-        }
-
         $transaction = Transaction::create($attributes);
 
         $this->advanceNextRunDate();
