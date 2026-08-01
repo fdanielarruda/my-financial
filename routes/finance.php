@@ -5,6 +5,7 @@ use App\Http\Controllers\Finance\CategoryController;
 use App\Http\Controllers\Finance\CreditCardController;
 use App\Http\Controllers\Finance\CreditCardInvoiceController;
 use App\Http\Controllers\Finance\InstitutionController;
+use App\Http\Controllers\Finance\OwedController;
 use App\Http\Controllers\Finance\PersonController;
 use App\Http\Controllers\Finance\RecurringTransactionController;
 use App\Http\Controllers\Finance\StatementImportController;
@@ -25,6 +26,8 @@ Route::middleware(['auth', 'verified'])->prefix('finance')->name('finance.')->gr
     Route::resource('transactions', TransactionController::class)->except(['show', 'create', 'edit'])->names('transactions');
 
     Route::get('summary', [SummaryController::class, 'index'])->name('summary.index');
+
+    Route::get('owed', [OwedController::class, 'index'])->name('owed.index');
 
     Route::resource('transfers', TransferController::class)->only(['index', 'store', 'update', 'destroy'])->names('transfers');
 

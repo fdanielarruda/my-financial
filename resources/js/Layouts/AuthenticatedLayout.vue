@@ -14,6 +14,7 @@ const mainLinks = [
     { label: 'Dashboard', route: 'dashboard', active: 'dashboard' },
     { label: 'Lançamento rápido', route: 'finance.transactions.quick', active: 'finance.transactions.quick' },
     { label: 'Resumo', route: 'finance.summary.index', active: 'finance.summary.*' },
+    { label: 'Quanto me devem', route: 'finance.owed.index', active: 'finance.owed.*' },
     { label: 'Contas', route: 'finance.accounts.index', active: 'finance.accounts.*' },
     {
         label: 'Transações',
