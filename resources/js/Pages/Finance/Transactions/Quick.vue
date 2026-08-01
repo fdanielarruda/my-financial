@@ -188,26 +188,6 @@ function submit(type) {
 
                     <div class="mt-4 grid grid-cols-2 gap-4">
                         <div>
-                            <InputLabel for="bank" value="Banco" />
-                            <SelectInput id="bank" v-model="selectedBank" class="mt-1 block w-full">
-                                <option v-for="b in banks" :key="b.key" :value="b.key">{{ b.label }}</option>
-                            </SelectInput>
-                        </div>
-
-                        <div>
-                            <InputLabel for="account_id" value="Conta" />
-                            <SelectInput id="account_id" v-model="form.account_id" class="mt-1 block w-full">
-                                <option v-for="a in accountsForBank" :key="a.id" :value="a.id">
-                                    {{ a.name }}
-                                </option>
-                            </SelectInput>
-                            <InputError class="mt-2" :message="form.errors.account_id" />
-                            <InputError class="mt-2" :message="form.errors.person_id" />
-                        </div>
-                    </div>
-
-                    <div class="mt-4 grid grid-cols-2 gap-4">
-                        <div>
                             <InputLabel for="date" value="Data" />
                             <TextInput id="date" v-model="form.date" type="date" class="mt-1 block w-full" required />
                             <InputError class="mt-2" :message="form.errors.date" />
@@ -220,6 +200,48 @@ function submit(type) {
                                 <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
                             </SelectInput>
                         </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <InputLabel value="Banco" />
+                        <div class="mt-1 grid gap-2" :style="{ gridTemplateColumns: `repeat(${banks.length || 1}, minmax(0, 1fr))` }">
+                            <button
+                                v-for="b in banks"
+                                :key="b.key"
+                                type="button"
+                                class="w-full truncate rounded-md border px-3 py-2 text-sm font-medium"
+                                :class="
+                                    selectedBank === b.key
+                                        ? 'border-indigo-600 bg-indigo-600 text-white'
+                                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                                "
+                                @click="selectedBank = b.key"
+                            >
+                                {{ b.label }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <InputLabel value="Conta" />
+                        <div class="mt-1 grid gap-2" :style="{ gridTemplateColumns: `repeat(${accountsForBank.length || 1}, minmax(0, 1fr))` }">
+                            <button
+                                v-for="a in accountsForBank"
+                                :key="a.id"
+                                type="button"
+                                class="w-full truncate rounded-md border px-3 py-2 text-sm font-medium"
+                                :class="
+                                    Number(form.account_id) === a.id
+                                        ? 'border-indigo-600 bg-indigo-600 text-white'
+                                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                                "
+                                @click="form.account_id = a.id"
+                            >
+                                {{ a.name }}
+                            </button>
+                        </div>
+                        <InputError class="mt-2" :message="form.errors.account_id" />
+                        <InputError class="mt-2" :message="form.errors.person_id" />
                     </div>
 
                     <div class="mt-4">
