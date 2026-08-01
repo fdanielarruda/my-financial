@@ -37,10 +37,6 @@ function monthLabel(dateString) {
     });
 }
 
-function bankLabel(account) {
-    return account.institution?.name ?? 'Dinheiro';
-}
-
 /* ---------- Nova compra ---------- */
 
 const form = useForm({
@@ -345,8 +341,7 @@ const groupedByDay = computed(() => {
                                         </span>
                                     </p>
                                     <p class="text-xs text-gray-500">
-                                        {{ bankLabel(transaction.account) }} / {{ transaction.account.name }} · {{ transaction.person.name }}
-                                        <template v-if="transaction.category"> · {{ transaction.category.name }}</template>
+                                        {{ transaction.account.name }}
                                     </p>
                                 </div>
                                 <div class="flex items-center gap-3">

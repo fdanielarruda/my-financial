@@ -10,7 +10,7 @@ export function formatMoney(value) {
 export function formatDate(value) {
     if (!value) return '';
 
-    return new Date(value + 'T00:00:00').toLocaleDateString('pt-BR');
+    return new Date(value.slice(0, 10) + 'T00:00:00').toLocaleDateString('pt-BR');
 }
 
 export const accountTypeLabels = {
