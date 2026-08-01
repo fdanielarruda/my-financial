@@ -140,8 +140,7 @@ function submit(type) {
     form.post(route('finance.transactions.store'), {
         preserveScroll: true,
         onSuccess: () => {
-            form.reset('amount', 'description', 'category_id');
-            form.date = today;
+            form.reset('amount', 'description');
         },
     });
 }
