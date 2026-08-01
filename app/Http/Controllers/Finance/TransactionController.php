@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\StoreTransactionRequest;
 use App\Models\Account;
 use App\Models\Category;
+use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
@@ -60,7 +61,10 @@ class TransactionController extends Controller
         $transactions = Transaction::query()
             ->with(['account.institution', 'category', 'person'])
             ->when($request->filled('account_id'), fn ($q) => $q->where('account_id', $request->integer('account_id')))
-            ->when($request->filled('person_id'), fn ($q) => $q->where('person_id', $request->integer('person_id')))
+            ->when($request->filled('institution_id'), fn ($q) => $q->whereHas(
+                'account',
+                fn ($accountQuery) => $accountQuery->where('institution_id', $request->integer('institution_id'))
+            ))
             ->when($request->filled('category_id'), fn ($q) => $q->where('category_id', $request->integer('category_id')))
             ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->date('from')))
             ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->date('to')))
@@ -71,10 +75,10 @@ class TransactionController extends Controller
 
         return Inertia::render('Finance/Transactions/Index', [
             'transactions' => $transactions,
-            'accounts' => Account::whereNull('archived_at')->orderBy('name')->get(),
-            'people' => Person::orderBy('name')->get(),
+            'accounts' => Account::with(['institution', 'person'])->whereNull('archived_at')->orderBy('name')->get(),
+            'institutions' => Institution::orderBy('name')->get(),
             'categories' => Category::orderBy('name')->get(),
-            'filters' => $request->only(['account_id', 'person_id', 'category_id', 'from', 'to']),
+            'filters' => $request->only(['account_id', 'institution_id', 'category_id', 'from', 'to']),
         ]);
     }
 

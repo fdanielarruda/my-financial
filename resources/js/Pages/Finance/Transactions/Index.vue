@@ -10,27 +10,42 @@ import SelectInput from '@/Components/SelectInput.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { formatDate, formatMoney } from '@/finance';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 
 const props = defineProps({
     transactions: Object,
     accounts: Array,
-    people: Array,
+    institutions: Array,
     categories: Array,
     filters: Object,
 });
 
 const filters = reactive({
+    institution_id: props.filters.institution_id ?? '',
     account_id: props.filters.account_id ?? '',
-    person_id: props.filters.person_id ?? '',
     category_id: props.filters.category_id ?? '',
     from: props.filters.from ?? '',
     to: props.filters.to ?? '',
 });
 
+const accountsForFilterBank = computed(() =>
+    filters.institution_id === ''
+        ? props.accounts
+        : props.accounts.filter((a) => a.institution?.id === Number(filters.institution_id))
+);
+
 function applyFilters() {
     router.get(route('finance.transactions.index'), filters, { preserveState: true, replace: true });
 }
+
+watch(
+    () => filters.institution_id,
+    () => {
+        if (!accountsForFilterBank.value.some((a) => a.id === Number(filters.account_id))) {
+            filters.account_id = '';
+        }
+    }
+);
 
 function destroyTransaction(transaction) {
     if (confirm('Remover este lançamento?')) {
@@ -52,8 +67,49 @@ const editForm = useForm({
     date: '',
 });
 
+function accountBankKey(account) {
+    return account.institution?.id ?? 'none';
+}
+
+function accountBankLabel(account) {
+    return account.institution?.name ?? 'Dinheiro';
+}
+
+const editBanks = computed(() => {
+    const seen = new Map();
+
+    for (const a of props.accounts) {
+        seen.set(accountBankKey(a), accountBankLabel(a));
+    }
+
+    return [...seen.entries()]
+        .map(([key, label]) => ({ key, label }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+});
+
+const editSelectedBank = ref('');
+
+const editAccountsForBank = computed(() =>
+    props.accounts.filter((a) => accountBankKey(a) === editSelectedBank.value)
+);
+
+watch(editSelectedBank, () => {
+    if (!editAccountsForBank.value.some((a) => a.id === Number(editForm.account_id))) {
+        editForm.account_id = editAccountsForBank.value[0]?.id ?? '';
+    }
+});
+
+watch(
+    () => editForm.account_id,
+    (accountId) => {
+        const account = props.accounts.find((a) => a.id === Number(accountId));
+        editForm.person_id = account?.person.id ?? '';
+    }
+);
+
 function openEdit(transaction) {
     editing.value = transaction;
+    editSelectedBank.value = accountBankKey(transaction.account);
     editForm.account_id = transaction.account.id;
     editForm.person_id = transaction.person.id;
     editForm.category_id = transaction.category?.id ?? '';
@@ -104,24 +160,51 @@ const groupedByDay = computed(() => {
 
         <div class="py-12">
             <div class="mx-auto max-w-6xl space-y-6 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-2 gap-4 rounded-lg bg-white p-5 shadow sm:grid-cols-5">
-                    <SelectInput v-model="filters.account_id" @change="applyFilters">
-                        <option value="">Todas as contas</option>
-                        <option v-for="a in accounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-                    </SelectInput>
+                <div class="space-y-4 rounded-lg bg-white p-5 shadow">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        <div>
+                            <InputLabel value="Banco" />
+                            <SelectInput v-model="filters.institution_id" class="mt-1 block w-full" @change="applyFilters">
+                                <option value="">Todos os bancos</option>
+                                <option v-for="i in institutions" :key="i.id" :value="i.id">{{ i.name }}</option>
+                            </SelectInput>
+                        </div>
 
-                    <SelectInput v-model="filters.person_id" @change="applyFilters">
-                        <option value="">Todas as pessoas</option>
-                        <option v-for="p in people" :key="p.id" :value="p.id">{{ p.name }}</option>
-                    </SelectInput>
+                        <div>
+                            <InputLabel value="Conta" />
+                            <SelectInput
+                                v-model="filters.account_id"
+                                class="mt-1 block w-full disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                :disabled="!filters.institution_id"
+                                @change="applyFilters"
+                            >
+                                <option value="">
+                                    {{ filters.institution_id ? 'Todas as contas' : 'Selecione um banco' }}
+                                </option>
+                                <option v-for="a in accountsForFilterBank" :key="a.id" :value="a.id">{{ a.name }}</option>
+                            </SelectInput>
+                        </div>
 
-                    <SelectInput v-model="filters.category_id" @change="applyFilters">
-                        <option value="">Todas as categorias</option>
-                        <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-                    </SelectInput>
+                        <div>
+                            <InputLabel value="Categoria" />
+                            <SelectInput v-model="filters.category_id" class="mt-1 block w-full" @change="applyFilters">
+                                <option value="">Todas as categorias</option>
+                                <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                            </SelectInput>
+                        </div>
+                    </div>
 
-                    <TextInput v-model="filters.from" type="date" @change="applyFilters" />
-                    <TextInput v-model="filters.to" type="date" @change="applyFilters" />
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <InputLabel value="De" />
+                            <TextInput v-model="filters.from" type="date" class="mt-1 block w-full" @change="applyFilters" />
+                        </div>
+
+                        <div>
+                            <InputLabel value="Até" />
+                            <TextInput v-model="filters.to" type="date" class="mt-1 block w-full" @change="applyFilters" />
+                        </div>
+                    </div>
                 </div>
 
                 <div class="overflow-hidden bg-white shadow sm:rounded-lg">
@@ -235,18 +318,18 @@ const groupedByDay = computed(() => {
                 </div>
 
                 <div>
-                    <InputLabel for="edit_account_id" value="Conta" />
-                    <SelectInput id="edit_account_id" v-model="editForm.account_id" class="mt-1 block w-full">
-                        <option v-for="a in accounts" :key="a.id" :value="a.id">{{ a.name }}</option>
+                    <InputLabel for="edit_bank" value="Banco" />
+                    <SelectInput id="edit_bank" v-model="editSelectedBank" class="mt-1 block w-full">
+                        <option v-for="b in editBanks" :key="b.key" :value="b.key">{{ b.label }}</option>
                     </SelectInput>
-                    <InputError class="mt-2" :message="editForm.errors.account_id" />
                 </div>
 
                 <div>
-                    <InputLabel for="edit_person_id" value="Pessoa" />
-                    <SelectInput id="edit_person_id" v-model="editForm.person_id" class="mt-1 block w-full">
-                        <option v-for="p in people" :key="p.id" :value="p.id">{{ p.name }}</option>
+                    <InputLabel for="edit_account_id" value="Conta" />
+                    <SelectInput id="edit_account_id" v-model="editForm.account_id" class="mt-1 block w-full">
+                        <option v-for="a in editAccountsForBank" :key="a.id" :value="a.id">{{ a.name }}</option>
                     </SelectInput>
+                    <InputError class="mt-2" :message="editForm.errors.account_id" />
                     <InputError class="mt-2" :message="editForm.errors.person_id" />
                 </div>
 
