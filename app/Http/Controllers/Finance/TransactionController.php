@@ -44,9 +44,14 @@ class TransactionController extends Controller
 
         $transactions = Transaction::query()
             ->where('user_id', $request->user()->id)
-            ->whereHas('account', fn ($q) => $institutionId
-                ? $q->where('institution_id', $institutionId)
-                : $q->whereNull('institution_id'))
+            ->whereNull('credit_card_invoice_id')
+            ->whereHas('account', function ($q) use ($institutionId) {
+                $q->where('type', '!=', \App\Enums\AccountType::CreditCard);
+
+                $institutionId
+                    ? $q->where('institution_id', $institutionId)
+                    : $q->whereNull('institution_id');
+            })
             ->with(['account', 'category'])
             ->orderByDesc('date')
             ->orderByDesc('id')

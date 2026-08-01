@@ -47,6 +47,7 @@ const form = useForm({
     is_unknown: false,
     amount: '',
     date: today,
+    mode: 'single',
     installment_number: 1,
     installment_total: 1,
 });
@@ -60,12 +61,17 @@ watch(
 );
 
 const purchasePreview = computed(() => {
-    const number = Number(form.installment_number) || 1;
-    const total = Number(form.installment_total) || 1;
-
-    if (total <= 1) {
+    if (form.mode === 'single') {
         return `Será lançada 1 compra na fatura de ${monthLabel(props.invoice.reference_month)}.`;
     }
+
+    if (form.mode === 'recurring') {
+        return `Será lançada uma parcela de ${formatMoney(form.amount || 0)} por mês, a partir da fatura de `
+            + `${monthLabel(props.invoice.reference_month)}, renovando automaticamente até sempre estar 2 anos à frente.`;
+    }
+
+    const number = Number(form.installment_number) || 1;
+    const total = Number(form.installment_total) || 1;
 
     const firstMonth = addMonths(props.invoice.reference_month, 1 - number);
     const lastMonth = addMonths(props.invoice.reference_month, total - number);
@@ -96,6 +102,10 @@ const editForm = useForm({
     is_unknown: false,
     amount: '',
     category_id: '',
+    date: '',
+    mode: 'single',
+    installment_number: 1,
+    installment_total: 1,
     scope: 'this',
 });
 
@@ -115,6 +125,10 @@ function openEdit(transaction) {
     editForm.is_unknown = transaction.is_unknown;
     editForm.amount = transaction.amount;
     editForm.category_id = transaction.category?.id ?? '';
+    editForm.date = transaction.date.slice(0, 10);
+    editForm.mode = transaction.installment_total ? 'installments' : transaction.is_recurring ? 'recurring' : 'single';
+    editForm.installment_number = transaction.installment_number ?? 1;
+    editForm.installment_total = transaction.installment_total ?? 1;
     editForm.scope = transaction.installment_total ? 'future' : 'this';
     editForm.clearErrors();
     showEditModal.value = true;
@@ -181,12 +195,20 @@ const groupedByDay = computed(() => {
                         {{ monthLabel(invoice.reference_month) }}
                     </span>
                     <Link
+                        v-if="nextInvoiceId"
                         :href="route('finance.invoices.show', nextInvoiceId)"
                         class="flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50"
                         title="Próxima fatura"
                     >
                         →
                     </Link>
+                    <span
+                        v-else
+                        class="flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 text-gray-300"
+                        title="Limite de 2 anos à frente"
+                    >
+                        →
+                    </span>
                 </div>
             </div>
         </template>
@@ -210,6 +232,23 @@ const groupedByDay = computed(() => {
                     <form class="mt-4" @submit.prevent="submitPurchase">
                         <div class="grid grid-cols-1 gap-4">
                             <div>
+                                <InputLabel for="amount" value="Valor da parcela" />
+                                <TextInput
+                                    id="amount"
+                                    v-model="form.amount"
+                                    type="number"
+                                    inputmode="decimal"
+                                    step="0.01"
+                                    min="0.01"
+                                    placeholder="0,00"
+                                    class="mt-1 block w-full text-3xl font-semibold"
+                                    autofocus
+                                    required
+                                />
+                                <InputError class="mt-2" :message="form.errors.amount" />
+                            </div>
+
+                            <div>
                                 <div class="flex items-center justify-between">
                                     <InputLabel for="description" value="Descrição" />
                                     <label class="flex items-center gap-2 text-sm text-gray-600">
@@ -229,27 +268,88 @@ const groupedByDay = computed(() => {
 
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <InputLabel for="amount" value="Valor da parcela" />
-                                    <TextInput
-                                        id="amount"
-                                        v-model="form.amount"
-                                        type="number"
-                                        step="0.01"
-                                        min="0.01"
-                                        class="mt-1 block w-full text-lg font-semibold"
-                                        required
-                                    />
-                                    <InputError class="mt-2" :message="form.errors.amount" />
-                                </div>
-
-                                <div>
                                     <InputLabel for="date" value="Data da compra" />
                                     <TextInput id="date" v-model="form.date" type="date" class="mt-1 block w-full" required />
                                     <InputError class="mt-2" :message="form.errors.date" />
                                 </div>
+
+                                <div>
+                                    <InputLabel for="category_id" value="Categoria (opcional)" />
+                                    <SelectInput id="category_id" v-model="form.category_id" class="mt-1 block w-full">
+                                        <option value="">Sem categoria</option>
+                                        <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                    </SelectInput>
+                                </div>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <InputLabel value="Conta" />
+                                <div
+                                    class="mt-1 grid gap-2"
+                                    :style="{ gridTemplateColumns: `repeat(${accounts.length || 1}, minmax(0, 1fr))` }"
+                                >
+                                    <button
+                                        v-for="a in accounts"
+                                        :key="a.id"
+                                        type="button"
+                                        class="w-full truncate rounded-md border px-3 py-2 text-sm font-medium"
+                                        :class="
+                                            Number(form.account_id) === a.id
+                                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                                        "
+                                        @click="form.account_id = a.id"
+                                    >
+                                        {{ a.name }}
+                                    </button>
+                                </div>
+                                <InputError class="mt-2" :message="form.errors.account_id" />
+                                <InputError class="mt-2" :message="form.errors.person_id" />
+                            </div>
+
+                            <div>
+                                <InputLabel value="Tipo de lançamento" />
+                                <div class="mt-1 grid grid-cols-3 gap-2">
+                                    <button
+                                        type="button"
+                                        class="rounded-md border px-3 py-2 text-sm font-medium"
+                                        :class="
+                                            form.mode === 'single'
+                                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                                        "
+                                        @click="form.mode = 'single'"
+                                    >
+                                        Parcela única
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="rounded-md border px-3 py-2 text-sm font-medium"
+                                        :class="
+                                            form.mode === 'installments'
+                                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                                        "
+                                        @click="form.mode = 'installments'"
+                                    >
+                                        Parcelado
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="rounded-md border px-3 py-2 text-sm font-medium"
+                                        :class="
+                                            form.mode === 'recurring'
+                                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                                        "
+                                        @click="form.mode = 'recurring'"
+                                    >
+                                        Recorrente
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div v-if="form.mode === 'installments'" class="grid grid-cols-2 gap-4">
                                 <div>
                                     <InputLabel for="installment_number" value="Parcela neste mês" />
                                     <TextInput
@@ -275,27 +375,6 @@ const groupedByDay = computed(() => {
                                         required
                                     />
                                     <InputError class="mt-2" :message="form.errors.installment_total" />
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <InputLabel for="account_id" value="Conta" />
-                                    <SelectInput id="account_id" v-model="form.account_id" class="mt-1 block w-full">
-                                        <option v-for="a in accounts" :key="a.id" :value="a.id">
-                                            {{ a.name }}
-                                        </option>
-                                    </SelectInput>
-                                    <InputError class="mt-2" :message="form.errors.account_id" />
-                                    <InputError class="mt-2" :message="form.errors.person_id" />
-                                </div>
-
-                                <div>
-                                    <InputLabel for="category_id" value="Categoria (opcional)" />
-                                    <SelectInput id="category_id" v-model="form.category_id" class="mt-1 block w-full">
-                                        <option value="">Sem categoria</option>
-                                        <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-                                    </SelectInput>
                                 </div>
                             </div>
 
@@ -420,6 +499,87 @@ const groupedByDay = computed(() => {
                         </option>
                     </SelectInput>
                     <InputError class="mt-2" :message="editForm.errors.account_id" />
+                </div>
+
+                <div>
+                    <InputLabel for="edit_date" value="Data da compra" />
+                    <TextInput id="edit_date" v-model="editForm.date" type="date" class="mt-1 block w-full" required />
+                    <InputError class="mt-2" :message="editForm.errors.date" />
+                </div>
+
+                <div>
+                    <InputLabel value="Tipo de lançamento" />
+                    <div class="mt-1 grid grid-cols-3 gap-2">
+                        <button
+                            type="button"
+                            class="rounded-md border px-3 py-2 text-sm font-medium"
+                            :class="
+                                editForm.mode === 'single'
+                                    ? 'border-indigo-600 bg-indigo-600 text-white'
+                                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                            "
+                            @click="editForm.mode = 'single'"
+                        >
+                            Parcela única
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-md border px-3 py-2 text-sm font-medium"
+                            :class="
+                                editForm.mode === 'installments'
+                                    ? 'border-indigo-600 bg-indigo-600 text-white'
+                                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                            "
+                            @click="editForm.mode = 'installments'"
+                        >
+                            Parcelado
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-md border px-3 py-2 text-sm font-medium"
+                            :class="
+                                editForm.mode === 'recurring'
+                                    ? 'border-indigo-600 bg-indigo-600 text-white'
+                                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                            "
+                            @click="editForm.mode = 'recurring'"
+                        >
+                            Recorrente
+                        </button>
+                    </div>
+                    <p v-if="editForm.mode !== (editing?.installment_total ? 'installments' : editing?.is_recurring ? 'recurring' : 'single')"
+                       class="mt-2 text-xs text-amber-600">
+                        Trocar o tipo recria esta parcela e todas as futuras do mesmo grupo a partir de hoje.
+                    </p>
+                </div>
+
+                <div v-if="editForm.mode === 'installments'" class="grid grid-cols-2 gap-4">
+                    <div>
+                        <InputLabel for="edit_installment_number" value="Parcela neste mês" />
+                        <TextInput
+                            id="edit_installment_number"
+                            v-model="editForm.installment_number"
+                            type="number"
+                            min="1"
+                            :max="editForm.installment_total"
+                            class="mt-1 block w-full"
+                            required
+                        />
+                        <InputError class="mt-2" :message="editForm.errors.installment_number" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="edit_installment_total" value="Total de parcelas" />
+                        <TextInput
+                            id="edit_installment_total"
+                            v-model="editForm.installment_total"
+                            type="number"
+                            min="1"
+                            class="mt-1 block w-full"
+                            required
+                        />
+                        <InputError class="mt-2" :message="editForm.errors.installment_total" />
+                    </div>
                 </div>
 
                 <div v-if="editing?.installment_total">
