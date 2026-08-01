@@ -7,6 +7,7 @@ use App\Http\Controllers\Finance\InstitutionController;
 use App\Http\Controllers\Finance\PersonController;
 use App\Http\Controllers\Finance\RecurringTransactionController;
 use App\Http\Controllers\Finance\StatementImportController;
+use App\Http\Controllers\Finance\SummaryController;
 use App\Http\Controllers\Finance\TransactionController;
 use App\Http\Controllers\Finance\TransferController;
 use Illuminate\Support\Facades\Route;
@@ -18,7 +19,10 @@ Route::middleware(['auth', 'verified'])->prefix('finance')->name('finance.')->gr
 
     Route::resource('accounts', AccountController::class)->except(['create', 'edit'])->names('accounts');
 
+    Route::get('transactions/quick', [TransactionController::class, 'quick'])->name('transactions.quick');
     Route::resource('transactions', TransactionController::class)->except(['show', 'create', 'edit'])->names('transactions');
+
+    Route::get('summary', [SummaryController::class, 'index'])->name('summary.index');
 
     Route::resource('transfers', TransferController::class)->only(['index', 'store', 'destroy'])->names('transfers');
 

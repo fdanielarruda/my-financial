@@ -12,8 +12,14 @@ watch(sidebarCollapsed, (value) => {
 
 const mainLinks = [
     { label: 'Dashboard', route: 'dashboard', active: 'dashboard' },
+    { label: 'Lançamento rápido', route: 'finance.transactions.quick', active: 'finance.transactions.quick' },
+    { label: 'Resumo', route: 'finance.summary.index', active: 'finance.summary.*' },
     { label: 'Contas', route: 'finance.accounts.index', active: 'finance.accounts.*' },
-    { label: 'Transações', route: 'finance.transactions.index', active: 'finance.transactions.*' },
+    {
+        label: 'Transações',
+        route: 'finance.transactions.index',
+        active: ['finance.transactions.index', 'finance.transactions.create', 'finance.transactions.edit'],
+    },
     { label: 'Importar fatura', route: 'finance.statement-imports.create', active: 'finance.statement-imports.*' },
     { label: 'Transferências', route: 'finance.transfers.index', active: 'finance.transfers.*' },
     { label: 'Recorrências', route: 'finance.recurring.index', active: 'finance.recurring.*' },
@@ -24,6 +30,12 @@ const registrationLinks = [
     { label: 'Instituições', route: 'finance.institutions.index', active: 'finance.institutions.*' },
     { label: 'Categorias', route: 'finance.categories.index', active: 'finance.categories.*' },
 ];
+
+const isActive = (link) => {
+    const patterns = Array.isArray(link.active) ? link.active : [link.active];
+
+    return patterns.some((pattern) => route().current(pattern));
+};
 
 const linkClasses = (active) =>
     active
@@ -82,7 +94,7 @@ const linkClasses = (active) =>
                             v-for="link in mainLinks"
                             :key="link.route"
                             :href="route(link.route)"
-                            :class="linkClasses(route().current(link.active))"
+                            :class="linkClasses(isActive(link))"
                         >
                             {{ link.label }}
                         </Link>
@@ -97,7 +109,7 @@ const linkClasses = (active) =>
                                 v-for="link in registrationLinks"
                                 :key="link.route"
                                 :href="route(link.route)"
-                                :class="linkClasses(route().current(link.active))"
+                                :class="linkClasses(isActive(link))"
                             >
                                 {{ link.label }}
                             </Link>

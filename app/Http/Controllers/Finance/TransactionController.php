@@ -16,6 +16,27 @@ use Inertia\Response;
 
 class TransactionController extends Controller
 {
+    public function quick(): Response
+    {
+        return Inertia::render('Finance/Transactions/Quick', [
+            'accounts' => Account::with(['person', 'institution'])
+                ->whereNull('archived_at')
+                ->where('type', '!=', \App\Enums\AccountType::CreditCard)
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Account $account) => [
+                    'id' => $account->id,
+                    'name' => $account->name,
+                    'type' => $account->type->value,
+                    'person' => $account->person,
+                    'institution' => $account->institution,
+                    'balance' => $account->type !== \App\Enums\AccountType::CreditCard ? $account->balance() : null,
+                ]),
+            'people' => Person::orderBy('name')->get(),
+            'categories' => Category::orderBy('name')->get(),
+        ]);
+    }
+
     public function index(Request $request): Response
     {
         $transactions = Transaction::query()
