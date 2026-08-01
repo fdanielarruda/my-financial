@@ -8,7 +8,7 @@ import SelectInput from '@/Components/SelectInput.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { formatDate, formatMoney } from '@/finance';
 import { Head, useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 
 const props = defineProps({
     accounts: Array,
@@ -166,6 +166,16 @@ function openRecent(group) {
         .finally(() => {
             loadingRecent.value = false;
         });
+}
+
+const collapsedGroups = reactive(new Set());
+
+function toggleGroup(key) {
+    if (collapsedGroups.has(key)) {
+        collapsedGroups.delete(key);
+    } else {
+        collapsedGroups.add(key);
+    }
 }
 
 function submit(type) {
@@ -348,8 +358,16 @@ function submit(type) {
                                 >
                                     i
                                 </button>
+                                <button
+                                    type="button"
+                                    :title="collapsedGroups.has(group.bank) ? 'Mostrar conta' : 'Esconder conta'"
+                                    class="flex h-4 w-4 items-center justify-center rounded-full border border-gray-400 text-[10px] font-bold normal-case text-gray-500 hover:border-indigo-600 hover:text-indigo-600"
+                                    @click="toggleGroup(group.bank)"
+                                >
+                                    {{ collapsedGroups.has(group.bank) ? '+' : '−' }}
+                                </button>
                             </div>
-                            <ul class="mt-1 divide-y divide-gray-100">
+                            <ul v-if="!collapsedGroups.has(group.bank)" class="mt-1 divide-y divide-gray-100">
                                 <li
                                     v-for="a in group.accounts"
                                     :key="a.id"
@@ -386,8 +404,16 @@ function submit(type) {
                                 >
                                     i
                                 </button>
+                                <button
+                                    type="button"
+                                    :title="collapsedGroups.has(group.bank + '-invest') ? 'Mostrar conta' : 'Esconder conta'"
+                                    class="flex h-4 w-4 items-center justify-center rounded-full border border-indigo-400 text-[10px] font-bold normal-case text-indigo-500 hover:border-indigo-600 hover:text-indigo-700"
+                                    @click="toggleGroup(group.bank + '-invest')"
+                                >
+                                    {{ collapsedGroups.has(group.bank + '-invest') ? '+' : '−' }}
+                                </button>
                             </div>
-                            <ul class="mt-1 divide-y divide-gray-100">
+                            <ul v-if="!collapsedGroups.has(group.bank + '-invest')" class="mt-1 divide-y divide-gray-100">
                                 <li
                                     v-for="a in group.investmentAccounts"
                                     :key="a.id"
