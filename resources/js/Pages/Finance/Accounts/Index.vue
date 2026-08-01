@@ -9,13 +9,42 @@ import SelectInput from '@/Components/SelectInput.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { formatMoney } from '@/finance';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     accounts: Array,
     people: Array,
     institutions: Array,
     accountTypes: Array,
+});
+
+function bankLabel(account) {
+    return account.institution?.name ?? 'Dinheiro / Sem instituição';
+}
+
+function accountValue(account) {
+    return account.type === 'credit_card' ? account.open_invoice_total : account.balance;
+}
+
+const bankGroups = computed(() => {
+    const groups = new Map();
+
+    for (const account of props.accounts) {
+        const key = bankLabel(account);
+
+        if (!groups.has(key)) {
+            groups.set(key, { bank: key, accounts: [], total: 0 });
+        }
+
+        const group = groups.get(key);
+        group.accounts.push(account);
+
+        if (account.type !== 'credit_card') {
+            group.total += Number(account.balance ?? 0);
+        }
+    }
+
+    return [...groups.values()].sort((a, b) => a.bank.localeCompare(b.bank));
 });
 
 const showModal = ref(false);
@@ -87,55 +116,58 @@ function destroy(account) {
                     <PrimaryButton @click="openCreate">Nova conta</PrimaryButton>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <div
-                        v-for="account in accounts"
-                        :key="account.id"
-                        class="rounded-lg bg-white p-5 shadow"
-                    >
-                        <div class="flex items-start justify-between">
-                            <div>
-                                <Link
-                                    :href="route('finance.accounts.show', account.id)"
-                                    class="font-medium text-gray-900 hover:text-indigo-600"
-                                >
-                                    {{ account.name }}
-                                </Link>
-                                <p class="text-sm text-gray-500">
-                                    {{ account.type_label }} · {{ account.person.name }}
-                                    <template v-if="account.institution"> · {{ account.institution.name }}</template>
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="mt-4">
-                            <template v-if="account.type === 'credit_card'">
-                                <p class="text-sm text-gray-500">Fatura aberta</p>
-                                <p class="text-lg font-semibold text-gray-900">{{ formatMoney(account.open_invoice_total) }}</p>
-                                <p class="mt-1 text-xs text-gray-500">
-                                    Limite disponível: {{ formatMoney(account.available_limit) }}
-                                </p>
-                            </template>
-                            <template v-else>
-                                <p class="text-sm text-gray-500">Saldo</p>
-                                <p
-                                    class="text-lg font-semibold"
-                                    :class="Number(account.balance) < 0 ? 'text-red-600' : 'text-gray-900'"
-                                >
-                                    {{ formatMoney(account.balance) }}
-                                </p>
-                            </template>
-                        </div>
-
-                        <div class="mt-4 flex gap-3">
-                            <button class="text-sm text-indigo-600 hover:text-indigo-900" @click="openEdit(account)">Editar</button>
-                            <button class="text-sm text-red-600 hover:text-red-900" @click="destroy(account)">Arquivar</button>
-                        </div>
+                <div v-for="group in bankGroups" :key="group.bank" class="overflow-hidden rounded-lg bg-white shadow">
+                    <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-6">
+                        <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">{{ group.bank }}</h3>
+                        <span class="text-sm font-semibold" :class="group.total < 0 ? 'text-red-600' : 'text-gray-700'">
+                            {{ formatMoney(group.total) }}
+                        </span>
                     </div>
 
-                    <div v-if="accounts.length === 0" class="text-sm text-gray-500">
-                        Nenhuma conta cadastrada ainda.
-                    </div>
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr class="text-left text-xs uppercase tracking-wide text-gray-500">
+                                <th class="px-4 py-2 sm:px-6">Conta</th>
+                                <th class="px-4 py-2 sm:px-6">Tipo</th>
+                                <th class="px-4 py-2 sm:px-6">Pessoa</th>
+                                <th class="px-4 py-2 text-right sm:px-6">Saldo / Fatura</th>
+                                <th class="px-4 py-2 text-right sm:px-6">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr v-for="account in group.accounts" :key="account.id">
+                                <td class="px-4 py-3 text-sm sm:px-6">
+                                    <Link
+                                        :href="route('finance.accounts.show', account.id)"
+                                        class="font-medium text-gray-900 hover:text-indigo-600"
+                                    >
+                                        {{ account.name }}
+                                    </Link>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-500 sm:px-6">{{ account.type_label }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-500 sm:px-6">{{ account.person.name }}</td>
+                                <td class="px-4 py-3 text-right text-sm sm:px-6">
+                                    <span
+                                        class="font-medium"
+                                        :class="Number(accountValue(account)) < 0 ? 'text-red-600' : 'text-gray-900'"
+                                    >
+                                        {{ formatMoney(accountValue(account)) }}
+                                    </span>
+                                    <p v-if="account.type === 'credit_card'" class="text-xs text-gray-500">
+                                        Limite disponível: {{ formatMoney(account.available_limit) }}
+                                    </p>
+                                </td>
+                                <td class="px-4 py-3 text-right text-sm sm:px-6">
+                                    <button class="text-indigo-600 hover:text-indigo-900" @click="openEdit(account)">Editar</button>
+                                    <button class="ml-3 text-red-600 hover:text-red-900" @click="destroy(account)">Arquivar</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div v-if="accounts.length === 0" class="rounded-lg bg-white p-5 text-sm text-gray-500 shadow">
+                    Nenhuma conta cadastrada ainda.
                 </div>
             </div>
         </div>
