@@ -27,7 +27,6 @@ class StoreTransactionRequest extends FormRequest
 
         return [
             'account_id' => ['required', Rule::exists('accounts', 'id')->where('user_id', $userId)],
-            'person_id' => ['required', Rule::exists('people', 'id')->where('user_id', $userId)],
             'category_id' => ['nullable', Rule::exists('categories', 'id')->where('user_id', $userId)],
             'type' => ['required', Rule::in(['income', 'expense'])],
             'is_unknown' => ['nullable', 'boolean'],

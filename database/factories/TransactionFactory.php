@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Enums\TransactionType;
 use App\Models\Account;
-use App\Models\Person;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -24,7 +23,6 @@ class TransactionFactory extends Factory
         return [
             'user_id' => User::factory(),
             'account_id' => Account::factory(),
-            'person_id' => Person::factory(),
             'category_id' => null,
             'type' => fake()->randomElement(TransactionType::cases()),
             'description' => fake()->sentence(3),

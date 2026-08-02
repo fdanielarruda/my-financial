@@ -8,7 +8,6 @@ use App\Http\Requests\Finance\ExtractStatementRequest;
 use App\Http\Requests\Finance\StoreStatementImportRequest;
 use App\Models\Account;
 use App\Models\Category;
-use App\Models\Person;
 use App\Models\StatementImport;
 use App\Models\Transaction;
 use App\Services\StatementImport\StatementExtractor;
@@ -72,11 +71,10 @@ class StatementImportController extends Controller
                 'error_message' => $statementImport->error_message,
                 'imported_at' => $statementImport->imported_at,
             ],
-            'account' => $statementImport->account->only(['id', 'name', 'person_id']),
+            'account' => $statementImport->account->only(['id', 'name']),
             'items' => $statementImport->status === StatementImportStatus::Extracted
                 ? $this->flagDuplicates($statementImport->account, $statementImport->items ?? [])
                 : ($statementImport->items ?? []),
-            'people' => Person::orderBy('name')->get(),
             'categories' => Category::orderBy('name')->get(),
         ]);
     }
@@ -106,7 +104,6 @@ class StatementImportController extends Controller
                 Transaction::createPurchase([
                     'user_id' => $userId,
                     'account_id' => $statementImport->account_id,
-                    'person_id' => $item['person_id'],
                     'category_id' => $item['category_id'] ?? null,
                     'type' => $item['type'],
                     'description' => $item['description'],

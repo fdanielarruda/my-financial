@@ -22,7 +22,6 @@ class AccountBalanceTest extends TestCase
 
         $account->transactions()->create([
             'user_id' => $user->id,
-            'person_id' => $person->id,
             'type' => TransactionType::Income,
             'description' => 'Salário',
             'amount' => 500,
@@ -31,7 +30,6 @@ class AccountBalanceTest extends TestCase
 
         $account->transactions()->create([
             'user_id' => $user->id,
-            'person_id' => $person->id,
             'type' => TransactionType::Expense,
             'description' => 'Mercado',
             'amount' => 80,

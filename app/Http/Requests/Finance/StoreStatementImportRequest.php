@@ -26,7 +26,6 @@ class StoreStatementImportRequest extends FormRequest
             'items.*.date' => ['required', 'date'],
             'items.*.amount' => ['required', 'numeric', 'min:0.01'],
             'items.*.type' => ['required', Rule::in(['income', 'expense'])],
-            'items.*.person_id' => ['required', Rule::exists('people', 'id')->where('user_id', $userId)],
             'items.*.category_id' => ['nullable', Rule::exists('categories', 'id')->where('user_id', $userId)],
             'items.*.installment_total' => ['nullable', 'integer', 'between:1,48'],
         ];

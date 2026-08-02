@@ -38,7 +38,6 @@ class CreditCardInvoicePaymentTest extends TestCase
         Transaction::createInstallmentsForInvoice([
             'user_id' => $user->id,
             'account_id' => $checking->id,
-            'person_id' => $person->id,
             'type' => TransactionType::Expense,
             'description' => 'Supermercado',
             'amount' => 250,
@@ -48,7 +47,6 @@ class CreditCardInvoicePaymentTest extends TestCase
         Transaction::createInstallmentsForInvoice([
             'user_id' => $user->id,
             'account_id' => $savings->id,
-            'person_id' => $person->id,
             'type' => TransactionType::Expense,
             'description' => 'Presente',
             'amount' => 100,
@@ -81,7 +79,6 @@ class CreditCardInvoicePaymentTest extends TestCase
         Transaction::createInstallmentsForInvoice([
             'user_id' => $user->id,
             'account_id' => $account->id,
-            'person_id' => $person->id,
             'type' => TransactionType::Expense,
             'description' => 'Cinema',
             'amount' => 45,

@@ -23,7 +23,10 @@ class SummaryController extends Controller
             ->where('user_id', Auth::id())
             ->whereBetween('date', [$from, $to])
             ->when($request->filled('account_id'), fn ($q) => $q->where('account_id', $request->integer('account_id')))
-            ->when($request->filled('person_id'), fn ($q) => $q->where('person_id', $request->integer('person_id')));
+            ->when(
+                $request->filled('person_id'),
+                fn ($q) => $q->whereHas('account', fn ($accountQuery) => $accountQuery->where('person_id', $request->integer('person_id')))
+            );
 
         $totalIncome = (clone $baseQuery())->where('type', TransactionType::Income)->sum('amount');
         $totalExpense = (clone $baseQuery())->where('type', TransactionType::Expense)->sum('amount');

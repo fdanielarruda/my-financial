@@ -7,7 +7,6 @@ use App\Http\Requests\Finance\StoreTransactionRequest;
 use App\Models\Account;
 use App\Models\Category;
 use App\Models\Institution;
-use App\Models\Person;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -33,7 +32,6 @@ class TransactionController extends Controller
                     'institution' => $account->institution,
                     'balance' => $account->type !== \App\Enums\AccountType::CreditCard ? $account->balance() : null,
                 ]),
-            'people' => Person::orderBy('name')->get(),
             'categories' => Category::orderBy('name')->get(),
         ]);
     }
@@ -65,7 +63,7 @@ class TransactionController extends Controller
     {
         $transactions = Transaction::query()
             ->with([
-                'account.institution', 'category', 'person',
+                'account.institution', 'account.person', 'category',
                 'transfer.fromAccount.institution', 'transfer.toAccount.institution',
             ])
             ->when($request->filled('account_id'), fn ($q) => $q->where('account_id', $request->integer('account_id')))
@@ -98,7 +96,6 @@ class TransactionController extends Controller
         Transaction::createPurchase([
             'user_id' => $request->user()->id,
             'account_id' => $data['account_id'],
-            'person_id' => $data['person_id'],
             'category_id' => $data['category_id'] ?? null,
             'type' => $data['type'],
             'description' => $data['description'] ?: 'Desconhecido',
@@ -123,7 +120,6 @@ class TransactionController extends Controller
 
         $transaction->update([
             'account_id' => $data['account_id'],
-            'person_id' => $data['person_id'],
             'category_id' => $data['category_id'] ?? null,
             'type' => $data['type'],
             'description' => $data['description'] ?: 'Desconhecido',

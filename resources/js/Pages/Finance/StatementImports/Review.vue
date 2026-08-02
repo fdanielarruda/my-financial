@@ -14,7 +14,6 @@ const props = defineProps({
     statementImport: Object,
     account: Object,
     items: Array,
-    people: Array,
     categories: Array,
 });
 
@@ -26,7 +25,6 @@ function buildRows() {
         amount: item.total_amount,
         per_installment_amount: item.amount,
         type: item.type,
-        person_id: props.account.person_id ?? '',
         category_id: item.category_id ?? '',
         installment_number: item.installment_number,
         installment_total: item.installment_total,
@@ -63,7 +61,6 @@ function submit() {
             date: r.date,
             amount: r.amount,
             type: r.type,
-            person_id: r.person_id,
             category_id: r.category_id || null,
             installment_total: r.installment_total,
         }));
@@ -151,7 +148,6 @@ function reextract() {
                                     <th class="px-3 py-3">Data da compra</th>
                                     <th class="px-3 py-3">Valor total</th>
                                     <th class="px-3 py-3">Tipo</th>
-                                    <th class="px-3 py-3">Pessoa</th>
                                     <th class="px-3 py-3">Categoria</th>
                                 </tr>
                             </thead>
@@ -196,11 +192,6 @@ function reextract() {
                                         <SelectInput v-model="row.type" class="block" :disabled="!row.include || isImported">
                                             <option value="expense">Despesa</option>
                                             <option value="income">Receita</option>
-                                        </SelectInput>
-                                    </td>
-                                    <td class="px-3 py-2 align-top">
-                                        <SelectInput v-model="row.person_id" class="block" :disabled="!row.include || isImported">
-                                            <option v-for="p in people" :key="p.id" :value="p.id">{{ p.name }}</option>
                                         </SelectInput>
                                     </td>
                                     <td class="px-3 py-2 align-top">

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\TransactionType;
 use App\Support\BelongsToUser;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,13 +13,20 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 #[Fillable([
-    'user_id', 'account_id', 'person_id', 'category_id', 'credit_card_invoice_id', 'recurring_transaction_id',
+    'user_id', 'account_id', 'category_id', 'credit_card_invoice_id', 'recurring_transaction_id',
     'invoice_payment_id', 'transfer_id', 'type', 'description', 'is_unknown', 'reversed', 'amount', 'date',
     'installment_group_id', 'installment_number', 'installment_total', 'is_recurring',
 ])]
 class Transaction extends Model
 {
     use BelongsToUser, HasFactory;
+
+    /**
+     * A transaction has no person of its own — it's always whoever owns
+     * its account. Appended so the frontend can keep reading
+     * `transaction.person` without every caller reaching into `account`.
+     */
+    protected $appends = ['person'];
 
     protected function casts(): array
     {
@@ -37,9 +45,12 @@ class Transaction extends Model
         return $this->belongsTo(Account::class);
     }
 
-    public function person(): BelongsTo
+    /**
+     * Requires 'account.person' to be eager-loaded to avoid N+1 queries.
+     */
+    protected function person(): Attribute
     {
-        return $this->belongsTo(Person::class);
+        return Attribute::get(fn () => $this->account?->person);
     }
 
     public function category(): BelongsTo
@@ -159,7 +170,6 @@ class Transaction extends Model
             $created->push(Transaction::create([
                 'user_id' => $last->user_id,
                 'account_id' => $last->account_id,
-                'person_id' => $last->person_id,
                 'category_id' => $last->category_id,
                 'credit_card_invoice_id' => $invoice->id,
                 'type' => $last->type,

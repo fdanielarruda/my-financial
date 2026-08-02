@@ -55,7 +55,7 @@ class AccountController extends Controller
         $account->load(['person', 'institution']);
 
         $transactions = $account->transactions()
-            ->with(['category', 'person'])
+            ->with(['category', 'account.person'])
             ->orderByDesc('date')
             ->paginate(25);
 

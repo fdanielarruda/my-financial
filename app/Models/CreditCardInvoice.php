@@ -99,7 +99,6 @@ class CreditCardInvoice extends Model
 
                 return $account->transactions()->create([
                     'user_id' => $account->user_id,
-                    'person_id' => $account->person_id,
                     'invoice_payment_id' => $this->id,
                     'type' => TransactionType::Expense,
                     'description' => 'Pagamento de Fatura',

@@ -10,7 +10,7 @@ import SelectInput from '@/Components/SelectInput.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { formatDate, formatMoney, invoiceStatusLabels } from '@/finance';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     invoice: Object,
@@ -53,7 +53,6 @@ function payInvoice() {
 
 const form = useForm({
     account_id: props.accounts[0]?.id ?? '',
-    person_id: props.accounts[0]?.person.id ?? '',
     category_id: '',
     description: '',
     is_unknown: false,
@@ -63,14 +62,6 @@ const form = useForm({
     installment_number: 1,
     installment_total: 1,
 });
-
-watch(
-    () => form.account_id,
-    (accountId) => {
-        const account = props.accounts.find((a) => a.id === Number(accountId));
-        form.person_id = account?.person.id ?? '';
-    }
-);
 
 const purchasePreview = computed(() => {
     if (form.mode === 'single') {
@@ -109,7 +100,6 @@ const editing = ref(null);
 
 const editForm = useForm({
     account_id: '',
-    person_id: '',
     description: '',
     is_unknown: false,
     amount: '',
@@ -121,18 +111,9 @@ const editForm = useForm({
     scope: 'this',
 });
 
-watch(
-    () => editForm.account_id,
-    (accountId) => {
-        const account = props.accounts.find((a) => a.id === Number(accountId));
-        editForm.person_id = account?.person.id ?? '';
-    }
-);
-
 function openEdit(transaction) {
     editing.value = transaction;
     editForm.account_id = transaction.account.id;
-    editForm.person_id = transaction.person.id;
     editForm.description = transaction.description;
     editForm.is_unknown = transaction.is_unknown;
     editForm.amount = transaction.amount;
@@ -323,7 +304,6 @@ const groupedByDay = computed(() => {
                                     </button>
                                 </div>
                                 <InputError class="mt-2" :message="form.errors.account_id" />
-                                <InputError class="mt-2" :message="form.errors.person_id" />
                             </div>
 
                             <div>

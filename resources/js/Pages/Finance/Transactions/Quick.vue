@@ -12,7 +12,6 @@ import { computed, reactive, ref, watch } from 'vue';
 
 const props = defineProps({
     accounts: Array,
-    people: Array,
     categories: Array,
 });
 
@@ -47,26 +46,14 @@ const form = useForm({
     description: '',
     is_unknown: false,
     account_id: accountsForBank.value[0]?.id ?? '',
-    person_id: accountsForBank.value[0]?.person.id ?? '',
     category_id: '',
     date: today,
     type: 'expense',
 });
 
-
 watch(selectedBank, () => {
-    const first = accountsForBank.value[0];
-    form.account_id = first?.id ?? '';
-    form.person_id = first?.person.id ?? '';
+    form.account_id = accountsForBank.value[0]?.id ?? '';
 });
-
-watch(
-    () => form.account_id,
-    (accountId) => {
-        const account = props.accounts.find((a) => a.id === Number(accountId));
-        form.person_id = account?.person.id ?? '';
-    }
-);
 
 const isTransfer = ref(false);
 
@@ -290,7 +277,6 @@ function submit(type) {
                             </button>
                         </div>
                         <InputError class="mt-2" :message="form.errors.account_id" />
-                        <InputError class="mt-2" :message="form.errors.person_id" />
                     </div>
 
                     <div class="mt-4">

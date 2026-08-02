@@ -44,7 +44,10 @@ class OwedController extends Controller
 
                 $total = '0.00';
                 if ($invoice) {
-                    $items = $invoice->transactions()->when($personId, fn ($q) => $q->where('person_id', $personId));
+                    $items = $invoice->transactions()->when(
+                        $personId,
+                        fn ($q) => $q->whereHas('account', fn ($accountQuery) => $accountQuery->where('person_id', $personId))
+                    );
                     $charges = (string) (clone $items)->where('reversed', false)->sum('amount');
                     $credits = (string) (clone $items)->where('reversed', true)->sum('amount');
                     $total = Money::sub($charges, $credits);

@@ -58,7 +58,6 @@ const editing = ref(null);
 
 const editForm = useForm({
     account_id: '',
-    person_id: '',
     category_id: '',
     type: 'expense',
     description: '',
@@ -99,14 +98,6 @@ watch(editSelectedBank, () => {
     }
 });
 
-watch(
-    () => editForm.account_id,
-    (accountId) => {
-        const account = props.accounts.find((a) => a.id === Number(accountId));
-        editForm.person_id = account?.person.id ?? '';
-    }
-);
-
 function openEdit(transaction) {
     if (transaction.transfer_id) {
         openEditTransfer(transaction);
@@ -116,7 +107,6 @@ function openEdit(transaction) {
     editing.value = transaction;
     editSelectedBank.value = accountBankKey(transaction.account);
     editForm.account_id = transaction.account.id;
-    editForm.person_id = transaction.person.id;
     editForm.category_id = transaction.category?.id ?? '';
     editForm.type = transaction.type;
     editForm.description = transaction.description;
@@ -384,7 +374,6 @@ const groupedByDay = computed(() => {
                         <option v-for="a in editAccountsForBank" :key="a.id" :value="a.id">{{ a.name }}</option>
                     </SelectInput>
                     <InputError class="mt-2" :message="editForm.errors.account_id" />
-                    <InputError class="mt-2" :message="editForm.errors.person_id" />
                 </div>
 
                 <div>

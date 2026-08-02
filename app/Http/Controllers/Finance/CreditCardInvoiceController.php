@@ -43,7 +43,7 @@ class CreditCardInvoiceController extends Controller
             'prevInvoiceId' => $prevInvoice->id,
             'nextInvoiceId' => $nextInvoice?->id,
             'transactions' => $invoice->transactions()
-                ->with(['account.institution', 'category', 'person'])
+                ->with(['account.institution', 'account.person', 'category'])
                 ->orderBy('date')
                 ->orderBy('installment_number')
                 ->orderBy('id')
@@ -78,7 +78,6 @@ class CreditCardInvoiceController extends Controller
         $data = $request->validate([
             'reference_invoice_id' => ['required', Rule::exists('credit_card_invoices', 'id')],
             'account_id' => ['required', Rule::exists('accounts', 'id')->where('user_id', $request->user()->id)],
-            'person_id' => ['required', Rule::exists('people', 'id')->where('user_id', $request->user()->id)],
             'category_id' => ['nullable', Rule::exists('categories', 'id')->where('user_id', $request->user()->id)],
             'is_unknown' => ['nullable', 'boolean'],
             'description' => [Rule::requiredIf(! $request->boolean('is_unknown')), 'nullable', 'string', 'max:255'],
@@ -97,7 +96,6 @@ class CreditCardInvoiceController extends Controller
         $attributes = [
             'user_id' => $request->user()->id,
             'account_id' => $data['account_id'],
-            'person_id' => $data['person_id'],
             'category_id' => $data['category_id'] ?? null,
             'type' => TransactionType::Expense,
             'description' => $data['description'] ?: 'Desconhecido',
@@ -125,7 +123,6 @@ class CreditCardInvoiceController extends Controller
 
         $data = $request->validate([
             'account_id' => ['required', Rule::exists('accounts', 'id')->where('user_id', $request->user()->id)],
-            'person_id' => ['required', Rule::exists('people', 'id')->where('user_id', $request->user()->id)],
             'is_unknown' => ['nullable', 'boolean'],
             'description' => [Rule::requiredIf(! $request->boolean('is_unknown')), 'nullable', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
@@ -155,7 +152,6 @@ class CreditCardInvoiceController extends Controller
             Transaction::changeType($transaction, $data['mode'], [
                 'user_id' => $request->user()->id,
                 'account_id' => $data['account_id'],
-                'person_id' => $data['person_id'],
                 'category_id' => $data['category_id'] ?? null,
                 'type' => TransactionType::Expense,
                 'description' => $data['description'] ?: 'Desconhecido',
