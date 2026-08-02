@@ -57,7 +57,6 @@ class Transfer extends Model
                     [
                         'user_id' => $attributes['user_id'],
                         'account_id' => $fromAccount->id,
-                        'person_id' => $fromAccount->person_id,
                         'type' => TransactionType::Expense,
                         'description' => $description,
                         'amount' => $attributes['amount'],
@@ -66,7 +65,6 @@ class Transfer extends Model
                     [
                         'user_id' => $attributes['user_id'],
                         'account_id' => $toAccount->id,
-                        'person_id' => $toAccount->person_id,
                         'type' => TransactionType::Income,
                         'description' => $description,
                         'amount' => $attributes['amount'],
@@ -97,7 +95,6 @@ class Transfer extends Model
 
         $this->transactions()->where('type', TransactionType::Expense)->update([
             'account_id' => $fromAccount->id,
-            'person_id' => $fromAccount->person_id,
             'description' => $description,
             'amount' => $attributes['amount'],
             'date' => $attributes['date'],
@@ -105,7 +102,6 @@ class Transfer extends Model
 
         $this->transactions()->where('type', TransactionType::Income)->update([
             'account_id' => $toAccount->id,
-            'person_id' => $toAccount->person_id,
             'description' => $description,
             'amount' => $attributes['amount'],
             'date' => $attributes['date'],
