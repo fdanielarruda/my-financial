@@ -8,8 +8,8 @@ use App\Http\Controllers\Finance\InstitutionController;
 use App\Http\Controllers\Finance\OwedController;
 use App\Http\Controllers\Finance\PersonController;
 use App\Http\Controllers\Finance\RecurringTransactionController;
+use App\Http\Controllers\Finance\ReportController;
 use App\Http\Controllers\Finance\StatementImportController;
-use App\Http\Controllers\Finance\SummaryController;
 use App\Http\Controllers\Finance\TransactionController;
 use App\Http\Controllers\Finance\TransferController;
 use Illuminate\Support\Facades\Route;
@@ -25,7 +25,7 @@ Route::middleware(['auth', 'verified'])->prefix('finance')->name('finance.')->gr
     Route::get('transactions/recent-by-bank', [TransactionController::class, 'recentByBank'])->name('transactions.recent-by-bank');
     Route::resource('transactions', TransactionController::class)->except(['show', 'create', 'edit'])->names('transactions');
 
-    Route::get('summary', [SummaryController::class, 'index'])->name('summary.index');
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
 
     Route::get('owed', [OwedController::class, 'index'])->name('owed.index');
 
