@@ -47,6 +47,31 @@ class Money
         return $amounts;
     }
 
+    /**
+     * Scale a set of shares (decimal strings summing to $originalTotal) so
+     * they sum to $newTotal instead, keeping each share's proportion. Used
+     * to reapply a split's percentages to a different installment's amount.
+     * Rounding remainder goes to the last share.
+     *
+     * @param  array<int, string>  $shares
+     * @return array<int, string>
+     */
+    public static function scaleShares(array $shares, string $originalTotal, string $newTotal): array
+    {
+        $originalCents = self::toCents($originalTotal);
+        $newCents = self::toCents($newTotal);
+
+        $scaled = array_map(
+            fn (string $share) => intdiv(self::toCents($share) * $newCents, $originalCents),
+            $shares
+        );
+
+        $remainder = $newCents - array_sum($scaled);
+        $scaled[array_key_last($scaled)] += $remainder;
+
+        return array_map(fn (int $cents) => self::fromCents($cents), $scaled);
+    }
+
     private static function toCents(string $value): int
     {
         $negative = str_starts_with($value, '-');

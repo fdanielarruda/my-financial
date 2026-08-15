@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 #[Fillable([
     'user_id', 'account_id', 'category_id', 'credit_card_invoice_id', 'recurring_transaction_id',
     'invoice_payment_id', 'transfer_id', 'type', 'description', 'is_unknown', 'reversed', 'amount', 'date',
-    'installment_group_id', 'installment_number', 'installment_total', 'is_recurring',
+    'installment_group_id', 'installment_number', 'installment_total', 'is_recurring', 'split_group_id',
 ])]
 class Transaction extends Model
 {
@@ -185,6 +185,92 @@ class Transaction extends Model
         }
 
         return $created;
+    }
+
+    /**
+     * Same as createInstallmentsForInvoice(), but fans each installment out
+     * across several people's shares instead of a single account. Each
+     * share gets its own installment_group_id (so its own future/all edit
+     * scope only ever touches that person's installments), while every
+     * month gets its own split_group_id linking that month's shares
+     * together for display and editing.
+     *
+     * @param  array<int, array{account_id: int|string, amount: string}>  $shares
+     */
+    public static function createSplitInstallmentsForInvoice(
+        array $shares,
+        array $baseAttributes,
+        CreditCardInvoice $anchorInvoice,
+        int $installmentNumber,
+        int $installmentTotal
+    ): void {
+        $creditCard = $anchorInvoice->creditCard;
+        $anchorMonth = $anchorInvoice->reference_month;
+        $groupIds = $installmentTotal > 1
+            ? array_map(fn () => (string) Str::ulid(), $shares)
+            : array_fill(0, count($shares), null);
+
+        for ($number = 1; $number <= $installmentTotal; $number++) {
+            $invoiceMonth = $anchorMonth->copy()->addMonthsNoOverflow($number - $installmentNumber);
+            $invoice = $creditCard->invoiceForMonth($invoiceMonth);
+            $splitGroupId = (string) Str::ulid();
+
+            foreach ($shares as $index => $share) {
+                $account = Account::findOrFail($share['account_id']);
+
+                $account->transactions()->create([
+                    ...$baseAttributes,
+                    'account_id' => $share['account_id'],
+                    'amount' => $share['amount'],
+                    'credit_card_invoice_id' => $invoice->id,
+                    'installment_group_id' => $groupIds[$index],
+                    'installment_number' => $installmentTotal > 1 ? $number : null,
+                    'installment_total' => $installmentTotal > 1 ? $installmentTotal : null,
+                    'split_group_id' => $splitGroupId,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Same as createRecurringForInvoice(), but fans each month out across
+     * several people's shares instead of a single account. See
+     * createSplitInstallmentsForInvoice() for the grouping rationale.
+     *
+     * @param  array<int, array{account_id: int|string, amount: string}>  $shares
+     */
+    public static function createSplitRecurringForInvoice(array $shares, array $baseAttributes, CreditCardInvoice $anchorInvoice): void
+    {
+        $creditCard = $anchorInvoice->creditCard;
+        $anchorMonth = $anchorInvoice->reference_month;
+        $capMonth = self::recurringCapMonth();
+        $groupIds = array_map(fn () => (string) Str::ulid(), $shares);
+
+        $index = 0;
+
+        for ($month = $anchorMonth->copy(); $month->lte($capMonth); $month->addMonthNoOverflow()) {
+            $invoice = $creditCard->invoiceForMonth($month);
+            $splitGroupId = (string) Str::ulid();
+
+            foreach ($shares as $shareIndex => $share) {
+                $account = Account::findOrFail($share['account_id']);
+
+                $account->transactions()->create([
+                    ...$baseAttributes,
+                    'account_id' => $share['account_id'],
+                    'amount' => $share['amount'],
+                    'date' => $index === 0 ? $baseAttributes['date'] : $month->copy()->startOfMonth()->toDateString(),
+                    'credit_card_invoice_id' => $invoice->id,
+                    'installment_group_id' => $groupIds[$shareIndex],
+                    'installment_number' => $index + 1,
+                    'installment_total' => null,
+                    'is_recurring' => true,
+                    'split_group_id' => $splitGroupId,
+                ]);
+            }
+
+            $index++;
+        }
     }
 
     /**
