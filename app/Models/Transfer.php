@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'from_account_id', 'to_account_id', 'amount', 'date', 'description'])]
+#[Fillable(['user_id', 'from_account_id', 'to_account_id', 'amount', 'date', 'description', 'is_movement_only'])]
 class Transfer extends Model
 {
     use BelongsToUser, HasFactory;
@@ -20,6 +20,7 @@ class Transfer extends Model
         return [
             'amount' => 'decimal:2',
             'date' => 'date',
+            'is_movement_only' => 'boolean',
         ];
     }
 
@@ -91,6 +92,7 @@ class Transfer extends Model
             'amount' => $attributes['amount'],
             'date' => $attributes['date'],
             'description' => $attributes['description'] ?? null,
+            'is_movement_only' => (bool) ($attributes['is_movement_only'] ?? false),
         ]);
 
         $this->transactions()->where('type', TransactionType::Expense)->update([

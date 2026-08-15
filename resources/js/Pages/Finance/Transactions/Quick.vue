@@ -63,6 +63,7 @@ const transferForm = useForm({
     amount: '',
     description: '',
     date: today,
+    is_movement_only: true,
 });
 
 watch(isTransfer, (value) => {
@@ -296,6 +297,11 @@ function submit(type) {
                         </SelectInput>
                         <InputError class="mt-2" :message="transferForm.errors.to_account_id" />
                         <InputError class="mt-2" :message="transferForm.errors.from_account_id" />
+
+                        <label class="mt-3 flex items-center gap-2 text-sm text-gray-600">
+                            <Checkbox v-model:checked="transferForm.is_movement_only" />
+                            Apenas movimentação (não contar no relatório)
+                        </label>
                     </div>
 
                     <div v-if="!isTransfer" class="mt-6 grid grid-cols-2 gap-4">

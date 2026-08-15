@@ -134,6 +134,7 @@ const editTransferForm = useForm({
     amount: '',
     date: '',
     description: '',
+    is_movement_only: true,
 });
 
 const editTransferFromBank = ref('');
@@ -167,6 +168,7 @@ function openEditTransfer(transaction) {
     editTransferForm.amount = transaction.transfer.amount;
     editTransferForm.date = transaction.transfer.date.slice(0, 10);
     editTransferForm.description = transaction.transfer.description ?? '';
+    editTransferForm.is_movement_only = transaction.transfer.is_movement_only;
     editTransferForm.clearErrors();
     showEditTransferModal.value = true;
 }
@@ -285,6 +287,18 @@ const groupedByDay = computed(() => {
                                             class="ml-1 rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-indigo-700"
                                         >
                                             Transferência
+                                        </span>
+                                        <span
+                                            v-if="transaction.transfer_id && transaction.transfer?.is_movement_only"
+                                            class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-gray-600"
+                                        >
+                                            Não conta no relatório
+                                        </span>
+                                        <span
+                                            v-if="transaction.invoice_payment_id"
+                                            class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-gray-600"
+                                        >
+                                            Pagamento de fatura · não conta no relatório
                                         </span>
                                         <span
                                             v-if="transaction.is_unknown"
@@ -477,6 +491,11 @@ const groupedByDay = computed(() => {
                     />
                     <InputError class="mt-2" :message="editTransferForm.errors.description" />
                 </div>
+
+                <label class="flex items-center gap-2 text-sm text-gray-600">
+                    <Checkbox v-model:checked="editTransferForm.is_movement_only" />
+                    Apenas movimentação (não contar no relatório)
+                </label>
             </div>
 
             <div class="mt-6 flex justify-end gap-3">

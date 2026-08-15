@@ -1,8 +1,11 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
+import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
 import SelectInput from '@/Components/SelectInput.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { formatDate, formatMoney } from '@/finance';
@@ -18,6 +21,7 @@ const props = defineProps({
 
 const today = new Date().toISOString().slice(0, 10);
 const editing = ref(null);
+const showModal = ref(false);
 
 const filters = reactive({
     institution_id: props.filters.institution_id ?? '',
@@ -75,6 +79,7 @@ const form = useForm({
     amount: '',
     date: today,
     description: '',
+    is_movement_only: true,
 });
 
 watch(fromBank, () => {
@@ -93,7 +98,7 @@ function submit() {
     if (editing.value) {
         form.put(route('finance.transfers.update', editing.value.id), {
             preserveScroll: true,
-            onSuccess: () => cancelEdit(),
+            onSuccess: () => closeModal(),
         });
 
         return;
@@ -101,8 +106,21 @@ function submit() {
 
     form.post(route('finance.transfers.store'), {
         preserveScroll: true,
-        onSuccess: () => form.reset('amount', 'description'),
+        onSuccess: () => closeModal(),
     });
+}
+
+function openCreate() {
+    editing.value = null;
+    form.reset();
+    form.from_account_id = props.accounts[0]?.id ?? '';
+    form.to_account_id = props.accounts[1]?.id ?? '';
+    fromBank.value = accountBankKey(props.accounts[0] ?? {});
+    toBank.value = accountBankKey(props.accounts[1] ?? props.accounts[0] ?? {});
+    form.date = today;
+    form.is_movement_only = true;
+    form.clearErrors();
+    showModal.value = true;
 }
 
 function openEdit(transfer) {
@@ -114,17 +132,15 @@ function openEdit(transfer) {
     form.amount = transfer.amount;
     form.date = transfer.date.slice(0, 10);
     form.description = transfer.description ?? '';
+    form.is_movement_only = transfer.is_movement_only;
     form.clearErrors();
+    showModal.value = true;
 }
 
-function cancelEdit() {
+function closeModal() {
+    showModal.value = false;
     editing.value = null;
     form.reset();
-    form.from_account_id = props.accounts[0]?.id ?? '';
-    form.to_account_id = props.accounts[1]?.id ?? '';
-    fromBank.value = accountBankKey(props.accounts[0] ?? {});
-    toBank.value = accountBankKey(props.accounts[1] ?? props.accounts[0] ?? {});
-    form.date = today;
     form.clearErrors();
 }
 
@@ -186,83 +202,14 @@ const groupedByDay = computed(() => {
                     </div>
                 </div>
 
-                <div class="overflow-hidden bg-white p-5 shadow sm:rounded-lg">
-                    <h3 class="font-medium text-gray-900">{{ editing ? 'Editar transferência' : 'Nova transferência' }}</h3>
-                    <p class="mt-1 text-sm text-gray-500">
-                        Use para mover dinheiro entre suas contas: aporte/resgate de investimento, pagamento entre contas, etc.
-                    </p>
-                    <form class="mt-4 space-y-4" @submit.prevent="submit">
-                        <div>
-                            <InputLabel value="De" />
-                            <div class="mt-1 grid grid-cols-2 gap-4">
-                                <SelectInput v-model="fromBank" class="block w-full">
-                                    <option v-for="b in formBanks" :key="b.key" :value="b.key">{{ b.label }}</option>
-                                </SelectInput>
-                                <div>
-                                    <SelectInput id="from_account_id" v-model="form.from_account_id" class="block w-full">
-                                        <option v-for="a in accountsForFromBank" :key="a.id" :value="a.id">{{ a.name }}</option>
-                                    </SelectInput>
-                                    <InputError class="mt-2" :message="form.errors.from_account_id" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <InputLabel value="Para" />
-                            <div class="mt-1 grid grid-cols-2 gap-4">
-                                <SelectInput v-model="toBank" class="block w-full">
-                                    <option v-for="b in formBanks" :key="b.key" :value="b.key">{{ b.label }}</option>
-                                </SelectInput>
-                                <div>
-                                    <SelectInput id="to_account_id" v-model="form.to_account_id" class="block w-full">
-                                        <option v-for="a in accountsForToBank" :key="a.id" :value="a.id">{{ a.name }}</option>
-                                    </SelectInput>
-                                    <InputError class="mt-2" :message="form.errors.to_account_id" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <InputLabel for="amount" value="Valor" />
-                                <TextInput
-                                    id="amount"
-                                    v-model="form.amount"
-                                    type="number"
-                                    step="0.01"
-                                    class="mt-1 block w-full"
-                                    required
-                                />
-                                <InputError class="mt-2" :message="form.errors.amount" />
-                            </div>
-
-                            <div>
-                                <InputLabel for="date" value="Data" />
-                                <TextInput id="date" v-model="form.date" type="date" class="mt-1 block w-full" required />
-                                <InputError class="mt-2" :message="form.errors.date" />
-                            </div>
-                        </div>
-
-                        <div>
-                            <InputLabel for="description" value="Descrição (opcional)" />
-                            <TextInput id="description" v-model="form.description" class="mt-1 block w-full" />
-                            <InputError class="mt-2" :message="form.errors.description" />
-                        </div>
-
-                        <div class="flex items-center gap-3">
-                            <PrimaryButton :disabled="form.processing">
-                                {{ editing ? 'Salvar' : 'Transferir' }}
-                            </PrimaryButton>
-                            <button
-                                v-if="editing"
-                                type="button"
-                                class="text-sm text-gray-600 hover:text-gray-900"
-                                @click="cancelEdit"
-                            >
-                                Cancelar
-                            </button>
-                        </div>
-                    </form>
+                <div class="flex items-center justify-between gap-4 rounded-lg bg-white p-5 shadow">
+                    <div>
+                        <h3 class="font-medium text-gray-900">Transferências</h3>
+                        <p class="mt-1 text-sm text-gray-500">
+                            Use para mover dinheiro entre suas contas: aporte/resgate de investimento, pagamento entre contas, etc.
+                        </p>
+                    </div>
+                    <PrimaryButton class="shrink-0 whitespace-nowrap" @click="openCreate">Nova transferência</PrimaryButton>
                 </div>
 
                 <div class="overflow-hidden bg-white shadow sm:rounded-lg">
@@ -314,4 +261,83 @@ const groupedByDay = computed(() => {
             </div>
         </div>
     </AuthenticatedLayout>
+
+    <Modal :show="showModal" max-width="lg" @close="closeModal">
+        <form class="p-6" @submit.prevent="submit">
+            <h2 class="text-lg font-medium text-gray-900">
+                {{ editing ? 'Editar transferência' : 'Nova transferência' }}
+            </h2>
+
+            <div class="mt-6 space-y-4">
+                <div>
+                    <InputLabel value="De" />
+                    <div class="mt-1 grid grid-cols-2 gap-4">
+                        <SelectInput v-model="fromBank" class="block w-full">
+                            <option v-for="b in formBanks" :key="b.key" :value="b.key">{{ b.label }}</option>
+                        </SelectInput>
+                        <div>
+                            <SelectInput id="from_account_id" v-model="form.from_account_id" class="block w-full">
+                                <option v-for="a in accountsForFromBank" :key="a.id" :value="a.id">{{ a.name }}</option>
+                            </SelectInput>
+                            <InputError class="mt-2" :message="form.errors.from_account_id" />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <InputLabel value="Para" />
+                    <div class="mt-1 grid grid-cols-2 gap-4">
+                        <SelectInput v-model="toBank" class="block w-full">
+                            <option v-for="b in formBanks" :key="b.key" :value="b.key">{{ b.label }}</option>
+                        </SelectInput>
+                        <div>
+                            <SelectInput id="to_account_id" v-model="form.to_account_id" class="block w-full">
+                                <option v-for="a in accountsForToBank" :key="a.id" :value="a.id">{{ a.name }}</option>
+                            </SelectInput>
+                            <InputError class="mt-2" :message="form.errors.to_account_id" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <InputLabel for="amount" value="Valor" />
+                        <TextInput
+                            id="amount"
+                            v-model="form.amount"
+                            type="number"
+                            step="0.01"
+                            class="mt-1 block w-full"
+                            required
+                        />
+                        <InputError class="mt-2" :message="form.errors.amount" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="date" value="Data" />
+                        <TextInput id="date" v-model="form.date" type="date" class="mt-1 block w-full" required />
+                        <InputError class="mt-2" :message="form.errors.date" />
+                    </div>
+                </div>
+
+                <div>
+                    <InputLabel for="description" value="Descrição (opcional)" />
+                    <TextInput id="description" v-model="form.description" class="mt-1 block w-full" />
+                    <InputError class="mt-2" :message="form.errors.description" />
+                </div>
+
+                <label class="flex items-center gap-2 text-sm text-gray-600">
+                    <Checkbox v-model:checked="form.is_movement_only" />
+                    Apenas movimentação (não contar no relatório)
+                </label>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+                <SecondaryButton @click="closeModal">Cancelar</SecondaryButton>
+                <PrimaryButton :disabled="form.processing">
+                    {{ editing ? 'Salvar' : 'Transferir' }}
+                </PrimaryButton>
+            </div>
+        </form>
+    </Modal>
 </template>

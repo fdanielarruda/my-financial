@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 import Modal from '@/Components/Modal.vue';
 import SelectInput from '@/Components/SelectInput.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -64,11 +65,48 @@ function categoryColor(row, index) {
 
 const showMonthModal = ref(false);
 const selectedMonth = ref(null);
+const showAllMonths = ref(false);
+const showIncome = ref(true);
+const showExpense = ref(true);
+const monthSort = ref('date');
 
-const selectedMonthTransactions = computed(() => props.transactionsByMonth[selectedMonth.value] ?? []);
+const modalSourceTransactions = computed(() =>
+    showAllMonths.value ? Object.values(props.transactionsByMonth).flat() : props.transactionsByMonth[selectedMonth.value] ?? []
+);
+
+const selectedMonthTransactions = computed(() => {
+    const transactions = modalSourceTransactions.value.filter(
+        (t) => (t.type === 'income' && showIncome.value) || (t.type === 'expense' && showExpense.value)
+    );
+
+    return [...transactions].sort((a, b) => {
+        if (monthSort.value === 'description') {
+            return a.description.localeCompare(b.description);
+        }
+
+        if (monthSort.value === 'amount') {
+            return Number(b.amount) - Number(a.amount);
+        }
+
+        return b.date.localeCompare(a.date);
+    });
+});
 
 function openMonth(month) {
     selectedMonth.value = month;
+    showAllMonths.value = false;
+    showIncome.value = true;
+    showExpense.value = true;
+    monthSort.value = 'date';
+    showMonthModal.value = true;
+}
+
+function openTotals(type) {
+    selectedMonth.value = null;
+    showAllMonths.value = true;
+    showIncome.value = type === 'income';
+    showExpense.value = type === 'expense';
+    monthSort.value = 'date';
     showMonthModal.value = true;
 }
 </script>
@@ -129,14 +167,22 @@ function openMonth(month) {
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <div class="rounded-lg bg-white p-5 shadow">
+                    <button
+                        type="button"
+                        class="rounded-lg bg-white p-5 text-left shadow hover:bg-gray-50"
+                        @click="openTotals('income')"
+                    >
                         <p class="text-sm text-gray-500">Entradas no período</p>
                         <p class="mt-1 text-2xl font-semibold text-green-600">{{ formatMoney(totals.income) }}</p>
-                    </div>
-                    <div class="rounded-lg bg-white p-5 shadow">
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-lg bg-white p-5 text-left shadow hover:bg-gray-50"
+                        @click="openTotals('expense')"
+                    >
                         <p class="text-sm text-gray-500">Saídas no período</p>
                         <p class="mt-1 text-2xl font-semibold text-red-600">{{ formatMoney(totals.expense) }}</p>
-                    </div>
+                    </button>
                     <div class="rounded-lg bg-white p-5 shadow">
                         <p class="text-sm text-gray-500">Saldo do período</p>
                         <p class="mt-1 text-2xl font-semibold" :class="balance < 0 ? 'text-red-600' : 'text-gray-900'">
@@ -277,29 +323,84 @@ function openMonth(month) {
         </div>
     </AuthenticatedLayout>
 
-    <Modal :show="showMonthModal" max-width="lg" @close="showMonthModal = false">
+    <Modal :show="showMonthModal" max-width="4xl" @close="showMonthModal = false">
         <div class="p-6">
             <h2 class="text-lg font-medium capitalize text-gray-900">
-                Lançamentos de {{ selectedMonth ? monthLabel(selectedMonth) : '' }}
+                {{ showAllMonths ? 'Lançamentos do período' : `Lançamentos de ${selectedMonth ? monthLabel(selectedMonth) : ''}` }}
             </h2>
 
-            <ul class="mt-4 max-h-96 divide-y divide-gray-100 overflow-y-auto">
-                <li v-for="t in selectedMonthTransactions" :key="t.id" class="flex items-center justify-between py-2">
-                    <div>
-                        <p class="text-sm text-gray-900">{{ t.description }}</p>
-                        <p class="text-xs text-gray-500">
-                            {{ formatDate(t.date) }} · {{ t.account }}
-                            <template v-if="t.category"> · {{ t.category }}</template>
-                        </p>
-                    </div>
-                    <span class="text-sm font-medium" :class="t.type === 'income' ? 'text-green-600' : 'text-red-600'">
-                        {{ t.type === 'income' ? '+' : '-' }}{{ formatMoney(t.amount) }}
-                    </span>
-                </li>
-                <li v-if="selectedMonthTransactions.length === 0" class="py-6 text-center text-sm text-gray-500">
-                    Nenhum lançamento neste mês.
-                </li>
-            </ul>
+            <div class="mt-4 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <label class="flex items-center gap-2 text-sm text-gray-600">
+                        <Checkbox v-model:checked="showIncome" />
+                        <span class="text-green-600">Entradas</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-600">
+                        <Checkbox v-model:checked="showExpense" />
+                        <span class="text-red-600">Saídas</span>
+                    </label>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label class="text-xs font-medium text-gray-500">Ordenar por</label>
+                    <SelectInput v-model="monthSort" class="block w-auto text-sm">
+                        <option value="date">Data</option>
+                        <option value="description">Nome</option>
+                        <option value="amount">Valor</option>
+                    </SelectInput>
+                </div>
+            </div>
+
+            <div class="mt-4 max-h-96 overflow-y-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="sticky top-0 bg-white">
+                        <tr class="border-b text-left text-xs uppercase tracking-wide text-gray-500">
+                            <th class="py-2 pr-4">Tipo</th>
+                            <th class="py-2 pr-4">Descrição</th>
+                            <th class="py-2 pr-4">Data</th>
+                            <th class="py-2 text-right">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr v-for="t in selectedMonthTransactions" :key="t.id">
+                            <td class="py-2 pr-4">
+                                <span
+                                    class="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase"
+                                    :class="
+                                        t.source === 'credit_card'
+                                            ? 'bg-indigo-100 text-indigo-700'
+                                            : 'bg-gray-100 text-gray-600'
+                                    "
+                                >
+                                    {{ t.source === 'credit_card' ? 'Cartão' : 'Transação' }}
+                                </span>
+                            </td>
+                            <td class="py-2 pr-4 text-gray-900">
+                                {{ t.description }}
+                                <span v-if="t.installment_total" class="text-xs text-gray-500">
+                                    ({{ t.installment_number }}/{{ t.installment_total }})
+                                </span>
+                                <span class="block text-xs text-gray-500">
+                                    {{ t.account }}
+                                    <template v-if="t.category"> · {{ t.category }}</template>
+                                </span>
+                            </td>
+                            <td class="py-2 pr-4 whitespace-nowrap text-gray-700">{{ formatDate(t.date) }}</td>
+                            <td
+                                class="py-2 text-right font-medium whitespace-nowrap"
+                                :class="t.type === 'income' ? 'text-green-600' : 'text-red-600'"
+                            >
+                                {{ t.type === 'income' ? '+' : '-' }}{{ formatMoney(t.amount) }}
+                            </td>
+                        </tr>
+                        <tr v-if="selectedMonthTransactions.length === 0">
+                            <td colspan="4" class="py-6 text-center text-sm text-gray-500">
+                                Nenhum lançamento neste mês.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </Modal>
 </template>

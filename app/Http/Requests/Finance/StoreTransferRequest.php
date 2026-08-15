@@ -31,6 +31,7 @@ class StoreTransferRequest extends FormRequest
             'amount' => ['required', 'numeric', 'min:0.01'],
             'date' => ['required', 'date'],
             'description' => ['nullable', 'string', 'max:255'],
+            'is_movement_only' => ['nullable', 'boolean'],
         ];
     }
 }

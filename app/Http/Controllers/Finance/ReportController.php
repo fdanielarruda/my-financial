@@ -18,7 +18,7 @@ class ReportController extends Controller
 {
     public function index(Request $request): Response
     {
-        $from = $request->filled('from') ? $request->date('from') : now()->startOfMonth()->subMonths(5);
+        $from = $request->filled('from') ? $request->date('from') : now()->startOfMonth();
         $to = $request->filled('to') ? $request->date('to') : now()->endOfMonth();
         $view = in_array($request->input('view'), ['overview', 'credit_card', 'investments'], true)
             ? $request->input('view')
@@ -26,8 +26,9 @@ class ReportController extends Controller
 
         // A card installment keeps its original purchase date on every row, but
         // it belongs to whichever invoice (reference_month) it was billed on —
-        // that's what should drive month filtering/grouping in the card view,
-        // not the shared purchase date.
+        // that's what should drive month filtering/grouping everywhere, not the
+        // shared purchase date, so non-card views still need to fall back to the
+        // invoice month for any card transaction they include.
         $baseQuery = fn () => Transaction::query()
             ->where('user_id', Auth::id())
             ->when(
@@ -36,7 +37,14 @@ class ReportController extends Controller
                     'creditCardInvoice',
                     fn ($invoiceQuery) => $invoiceQuery->whereBetween('reference_month', [$from->copy()->startOfMonth(), $to->copy()->endOfMonth()])
                 ),
-                fn ($q) => $q->whereBetween('date', [$from, $to])
+                fn ($q) => $q->where(
+                    fn ($dateQuery) => $dateQuery
+                        ->where(fn ($q2) => $q2->whereNull('credit_card_invoice_id')->whereBetween('date', [$from, $to]))
+                        ->orWhereHas(
+                            'creditCardInvoice',
+                            fn ($invoiceQuery) => $invoiceQuery->whereBetween('reference_month', [$from->copy()->startOfMonth(), $to->copy()->endOfMonth()])
+                        )
+                )
             )
             ->when(
                 $request->filled('person_id'),
@@ -52,11 +60,17 @@ class ReportController extends Controller
                 $view === 'overview',
                 fn ($q) => $q->whereHas(
                     'account',
-                    fn ($accountQuery) => $accountQuery->whereNotIn('type', [AccountType::CreditCard, AccountType::Investment])
-                )->whereNull('transfer_id')->whereNull('credit_card_invoice_id')
+                    fn ($accountQuery) => $accountQuery->where('type', '!=', AccountType::Investment)
+                )
+                    ->where(
+                        fn ($transferQuery) => $transferQuery
+                            ->whereNull('transfer_id')
+                            ->orWhereHas('transfer', fn ($tq) => $tq->where('is_movement_only', false))
+                    )
+                    ->whereNull('invoice_payment_id')
             );
 
-        $monthKey = fn (Transaction $t) => $view === 'credit_card'
+        $monthKey = fn (Transaction $t) => $t->credit_card_invoice_id
             ? $t->creditCardInvoice->reference_month->format('Y-m')
             : $t->date->format('Y-m');
 
@@ -86,7 +100,10 @@ class ReportController extends Controller
                 'date' => $t->date->toDateString(),
                 'description' => $t->description,
                 'type' => $t->type->value,
+                'source' => $t->credit_card_invoice_id ? 'credit_card' : 'transaction',
                 'amount' => (string) $t->amount,
+                'installment_number' => $t->installment_number,
+                'installment_total' => $t->installment_total,
                 'account' => $t->account->name,
                 'category' => $t->category?->name,
             ]))
