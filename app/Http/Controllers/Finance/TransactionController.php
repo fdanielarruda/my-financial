@@ -74,6 +74,8 @@ class TransactionController extends Controller
             ->when($request->filled('category_id'), fn ($q) => $q->where('category_id', $request->integer('category_id')))
             ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->date('from')))
             ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->date('to')))
+            ->when($request->input('kind') === 'credit_card', fn ($q) => $q->whereNotNull('credit_card_invoice_id'))
+            ->when($request->input('kind') === 'transactions', fn ($q) => $q->whereNull('credit_card_invoice_id'))
             ->orderByDesc('date')
             ->orderByDesc('id')
             ->paginate(25)
@@ -84,7 +86,7 @@ class TransactionController extends Controller
             'accounts' => Account::with(['institution', 'person'])->whereNull('archived_at')->orderBy('name')->get(),
             'institutions' => Institution::orderBy('name')->get(),
             'categories' => Category::orderBy('name')->get(),
-            'filters' => $request->only(['account_id', 'institution_id', 'category_id', 'from', 'to']),
+            'filters' => $request->only(['account_id', 'institution_id', 'category_id', 'from', 'to', 'kind']),
         ]);
     }
 

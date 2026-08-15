@@ -10,7 +10,7 @@ import SelectInput from '@/Components/SelectInput.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { formatDate, formatMoney, invoiceStatusLabels } from '@/finance';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
     invoice: Object,
@@ -142,6 +142,78 @@ function toggleReversed(transaction) {
     if (!scope) return;
 
     useForm({ scope }).post(route('finance.installments.reverse', transaction.id), { preserveScroll: true });
+}
+
+const showDeleteModal = ref(false);
+const deleting = ref(null);
+const deleteScope = ref('this');
+
+function destroyInstallment(transaction) {
+    deleting.value = transaction;
+    deleteScope.value = 'this';
+
+    if (!transaction.installment_total) {
+        if (confirm('Excluir este lançamento da fatura? Esta ação não pode ser desfeita.')) {
+            useForm({ scope: 'this' }).delete(route('finance.installments.destroy', transaction.id), { preserveScroll: true });
+        }
+        return;
+    }
+
+    showDeleteModal.value = true;
+}
+
+function confirmDestroyInstallment() {
+    useForm({ scope: deleteScope.value }).delete(route('finance.installments.destroy', deleting.value.id), {
+        preserveScroll: true,
+        onSuccess: () => (showDeleteModal.value = false),
+    });
+}
+
+/* ---------- Conferência (checklist local) ---------- */
+
+const checkedStorageKey = `invoice-checked-${props.invoice.id}`;
+
+function loadCheckedIds() {
+    try {
+        const raw = localStorage.getItem(checkedStorageKey);
+        return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch {
+        return new Set();
+    }
+}
+
+const checkedIds = ref(loadCheckedIds());
+
+watch(
+    checkedIds,
+    (value) => {
+        localStorage.setItem(checkedStorageKey, JSON.stringify([...value]));
+    },
+    { deep: true }
+);
+
+function isChecked(transaction) {
+    return checkedIds.value.has(transaction.id);
+}
+
+function toggleChecked(transaction) {
+    const next = new Set(checkedIds.value);
+
+    if (next.has(transaction.id)) {
+        next.delete(transaction.id);
+    } else {
+        next.add(transaction.id);
+    }
+
+    checkedIds.value = next;
+}
+
+const allChecked = computed(
+    () => props.transactions.length > 0 && props.transactions.every((t) => checkedIds.value.has(t.id))
+);
+
+function toggleCheckAll() {
+    checkedIds.value = allChecked.value ? new Set() : new Set(props.transactions.map((t) => t.id));
 }
 
 const groupedByDay = computed(() => {
@@ -389,6 +461,10 @@ const groupedByDay = computed(() => {
                 </div>
 
                 <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+                    <div v-if="transactions.length > 0" class="flex items-center gap-2 border-b bg-gray-50 px-4 py-2 sm:px-6">
+                        <Checkbox :checked="allChecked" @update:checked="toggleCheckAll" />
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Marcar todas</span>
+                    </div>
                     <div v-for="group in groupedByDay" :key="group.date">
                         <div class="bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 sm:px-6">
                             {{ formatDate(group.date) }}
@@ -399,11 +475,31 @@ const groupedByDay = computed(() => {
                                 :key="transaction.id"
                                 class="flex items-center justify-between px-4 py-3 sm:px-6"
                             >
-                                <div>
+                                <div class="flex items-center gap-3">
+                                    <Checkbox :checked="isChecked(transaction)" @update:checked="toggleChecked(transaction)" />
+                                    <div>
                                     <p class="text-gray-900" :class="transaction.reversed ? 'line-through text-gray-400' : ''">
                                         {{ transaction.description }}
                                         <span v-if="transaction.installment_total" class="text-xs text-gray-500">
                                             ({{ transaction.installment_number }}/{{ transaction.installment_total }})
+                                        </span>
+                                        <span
+                                            v-if="transaction.installment_total && transaction.installment_number === transaction.installment_total"
+                                            class="ml-1 rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-green-700"
+                                        >
+                                            Última
+                                        </span>
+                                        <span
+                                            v-if="!transaction.installment_total && !transaction.is_recurring"
+                                            class="ml-1 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-blue-700"
+                                        >
+                                            Única
+                                        </span>
+                                        <span
+                                            v-if="transaction.is_recurring"
+                                            class="ml-1 rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-purple-700"
+                                        >
+                                            Recorrente
                                         </span>
                                         <span
                                             v-if="transaction.is_unknown"
@@ -421,6 +517,7 @@ const groupedByDay = computed(() => {
                                     <p class="text-xs text-gray-500">
                                         {{ transaction.account.name }}
                                     </p>
+                                    </div>
                                 </div>
                                 <div class="flex items-center gap-3">
                                     <span :class="transaction.reversed ? 'text-green-600' : 'text-gray-900'">
@@ -431,6 +528,9 @@ const groupedByDay = computed(() => {
                                     </button>
                                     <button class="text-sm text-amber-600 hover:text-amber-900" @click="toggleReversed(transaction)">
                                         {{ transaction.reversed ? 'Desfazer estorno' : 'Estornar' }}
+                                    </button>
+                                    <button class="text-sm text-red-600 hover:text-red-900" @click="destroyInstallment(transaction)">
+                                        Excluir
                                     </button>
                                 </div>
                             </li>
@@ -629,5 +729,67 @@ const groupedByDay = computed(() => {
                 <PrimaryButton :disabled="editForm.processing">Salvar</PrimaryButton>
             </div>
         </form>
+    </Modal>
+
+    <Modal :show="showDeleteModal" max-width="md" @close="showDeleteModal = false">
+        <div class="p-6">
+            <h2 class="text-lg font-medium text-gray-900">Excluir parcela</h2>
+            <p class="mt-2 text-sm text-gray-600">
+                Esta compra é parcelada. Excluir apenas esta parcela, esta e as futuras, ou todas?
+            </p>
+
+            <div class="mt-4">
+                <InputLabel value="Aplicar em" />
+                <div class="mt-1 grid grid-cols-3 gap-2">
+                    <button
+                        type="button"
+                        class="rounded-md border px-3 py-2 text-sm font-medium"
+                        :class="
+                            deleteScope === 'this'
+                                ? 'border-red-600 bg-red-600 text-white'
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        "
+                        @click="deleteScope = 'this'"
+                    >
+                        Só esta
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-md border px-3 py-2 text-sm font-medium"
+                        :class="
+                            deleteScope === 'future'
+                                ? 'border-red-600 bg-red-600 text-white'
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        "
+                        @click="deleteScope = 'future'"
+                    >
+                        Esta e as próximas
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-md border px-3 py-2 text-sm font-medium"
+                        :class="
+                            deleteScope === 'all'
+                                ? 'border-red-600 bg-red-600 text-white'
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        "
+                        @click="deleteScope = 'all'"
+                    >
+                        Todas
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+                <SecondaryButton @click="showDeleteModal = false">Cancelar</SecondaryButton>
+                <button
+                    type="button"
+                    class="rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+                    @click="confirmDestroyInstallment"
+                >
+                    Excluir
+                </button>
+            </div>
+        </div>
     </Modal>
 </template>

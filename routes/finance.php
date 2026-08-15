@@ -42,6 +42,7 @@ Route::middleware(['auth', 'verified'])->prefix('finance')->name('finance.')->gr
     Route::post('credit-cards/{creditCard}/purchases', [CreditCardInvoiceController::class, 'storePurchase'])->name('purchases.store');
     Route::put('installments/{transaction}', [CreditCardInvoiceController::class, 'updateInstallment'])->name('installments.update');
     Route::post('installments/{transaction}/reverse', [CreditCardInvoiceController::class, 'toggleReversed'])->name('installments.reverse');
+    Route::delete('installments/{transaction}', [CreditCardInvoiceController::class, 'destroyInstallment'])->name('installments.destroy');
 
     Route::get('statement-imports/create', [StatementImportController::class, 'create'])->name('statement-imports.create');
     Route::post('statement-imports', [StatementImportController::class, 'upload'])->name('statement-imports.upload');

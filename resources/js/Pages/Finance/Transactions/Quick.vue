@@ -291,7 +291,7 @@ function submit(type) {
                         <SelectInput id="to_account_id" v-model="transferForm.to_account_id" class="mt-1 block w-full">
                             <option value="" disabled>Selecione a conta destino</option>
                             <option v-for="a in transferTargetOptions" :key="a.id" :value="a.id">
-                                {{ bankLabel(a) }} · {{ a.name }}
+                                {{ a.name }} · {{ bankLabel(a) }}
                             </option>
                         </SelectInput>
                         <InputError class="mt-2" :message="transferForm.errors.to_account_id" />

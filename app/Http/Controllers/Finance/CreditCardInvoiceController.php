@@ -191,6 +191,19 @@ class CreditCardInvoiceController extends Controller
         return Redirect::back();
     }
 
+    public function destroyInstallment(Request $request, Transaction $transaction): RedirectResponse
+    {
+        abort_if($transaction->user_id !== $request->user()->id, HttpResponse::HTTP_FORBIDDEN);
+
+        $data = $request->validate([
+            'scope' => ['required', Rule::in(['this', 'future', 'all'])],
+        ]);
+
+        $this->scopedInstallments($transaction, $data['scope'])->toQuery()->delete();
+
+        return Redirect::back();
+    }
+
     /**
      * Resolve which installments a "this / this and future / all" edit or
      * reversal scope applies to. A transaction without siblings (a single

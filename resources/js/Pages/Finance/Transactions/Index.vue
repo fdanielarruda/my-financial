@@ -26,6 +26,7 @@ const filters = reactive({
     category_id: props.filters.category_id ?? '',
     from: props.filters.from ?? '',
     to: props.filters.to ?? '',
+    kind: props.filters.kind ?? '',
 });
 
 const accountsForFilterBank = computed(() =>
@@ -209,7 +210,7 @@ const groupedByDay = computed(() => {
         <div class="py-12">
             <div class="mx-auto max-w-6xl space-y-6 sm:px-6 lg:px-8">
                 <div class="space-y-4 rounded-lg bg-white p-5 shadow">
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <InputLabel value="Banco" />
                             <SelectInput v-model="filters.institution_id" class="mt-1 block w-full" @change="applyFilters">
@@ -240,9 +241,16 @@ const groupedByDay = computed(() => {
                                 <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
                             </SelectInput>
                         </div>
-                    </div>
 
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <InputLabel value="Tipo" />
+                            <SelectInput v-model="filters.kind" class="mt-1 block w-full" @change="applyFilters">
+                                <option value="">Todos</option>
+                                <option value="credit_card">Cartão de crédito</option>
+                                <option value="transactions">Transações</option>
+                            </SelectInput>
+                        </div>
+
                         <div>
                             <InputLabel value="De" />
                             <TextInput v-model="filters.from" type="date" class="mt-1 block w-full" @change="applyFilters" />
