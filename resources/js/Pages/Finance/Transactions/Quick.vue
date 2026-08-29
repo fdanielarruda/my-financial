@@ -39,7 +39,11 @@ const banks = computed(() => {
 
 const selectedBank = ref(banks.value[0]?.key ?? '');
 
-const accountsForBank = computed(() => props.accounts.filter((a) => bankKey(a) === selectedBank.value));
+const accountsForBank = computed(() =>
+    props.accounts
+        .filter((a) => bankKey(a) === selectedBank.value)
+        .sort((a, b) => (a.type === 'investment') - (b.type === 'investment'))
+);
 
 const form = useForm({
     amount: '',
@@ -241,7 +245,10 @@ function submit(type) {
 
                     <div class="mt-4">
                         <InputLabel value="Banco" />
-                        <div class="mt-1 grid gap-2" :style="{ gridTemplateColumns: `repeat(${banks.length || 1}, minmax(0, 1fr))` }">
+                        <div
+                            class="mt-1 grid gap-2"
+                            :style="{ gridTemplateColumns: `repeat(${Math.min(banks.length || 1, 4)}, minmax(0, 1fr))` }"
+                        >
                             <button
                                 v-for="b in banks"
                                 :key="b.key"
@@ -261,7 +268,10 @@ function submit(type) {
 
                     <div class="mt-4">
                         <InputLabel value="Conta" />
-                        <div class="mt-1 grid gap-2" :style="{ gridTemplateColumns: `repeat(${accountsForBank.length || 1}, minmax(0, 1fr))` }">
+                        <div
+                            class="mt-1 grid gap-2"
+                            :style="{ gridTemplateColumns: `repeat(${Math.min(accountsForBank.length || 1, 4)}, minmax(0, 1fr))` }"
+                        >
                             <button
                                 v-for="a in accountsForBank"
                                 :key="a.id"

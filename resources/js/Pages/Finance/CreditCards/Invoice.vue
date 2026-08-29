@@ -225,9 +225,9 @@ function openEdit(transaction) {
     editForm.category_id = transaction.category?.id ?? primary.category?.id ?? '';
     editForm.date = primary.date.slice(0, 10);
     editForm.mode = primary.installment_total ? 'installments' : primary.is_recurring ? 'recurring' : 'single';
-    editForm.installment_number = primary.installment_number ?? 1;
-    editForm.installment_total = primary.installment_total ?? 1;
-    editForm.scope = primary.installment_total ? 'future' : 'this';
+    editForm.installment_number = editForm.mode === 'installments' ? primary.installment_number ?? 1 : 1;
+    editForm.installment_total = editForm.mode === 'installments' ? primary.installment_total ?? 1 : 1;
+    editForm.scope = primary.installment_total || primary.is_recurring ? 'future' : 'this';
     editForm.clearErrors();
 
     if (transaction.isSplitGroup) {
