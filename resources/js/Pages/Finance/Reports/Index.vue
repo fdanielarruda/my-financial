@@ -16,12 +16,14 @@ const props = defineProps({
     accountsSummary: Array,
     people: Array,
     categories: Array,
+    institutions: Array,
     filters: Object,
 });
 
 const filters = reactive({
     person_id: props.filters.person_id ?? '',
     category_id: props.filters.category_id ?? '',
+    institution_id: props.filters.institution_id ?? '',
     from: props.filters.from ?? '',
     to: props.filters.to ?? '',
     view: props.filters.view ?? 'overview',
@@ -109,6 +111,32 @@ function openTotals(type) {
     monthSort.value = 'date';
     showMonthModal.value = true;
 }
+
+/* ---------- Gastos por categoria ---------- */
+
+const showCategoryModal = ref(false);
+const selectedCategory = ref(null);
+const hasSelectedCategory = ref(false);
+
+const allTransactions = computed(() => Object.values(props.transactionsByMonth).flat());
+
+const selectedCategoryTransactions = computed(() => {
+    const transactions = allTransactions.value.filter((t) => {
+        if (t.type !== 'expense') {
+            return false;
+        }
+
+        return hasSelectedCategory.value ? t.category_id === selectedCategory.value?.id : !t.category_id;
+    });
+
+    return [...transactions].sort((a, b) => b.date.localeCompare(a.date));
+});
+
+function openCategory(row) {
+    selectedCategory.value = row.category;
+    hasSelectedCategory.value = row.category !== null;
+    showCategoryModal.value = true;
+}
 </script>
 
 <template>
@@ -138,7 +166,7 @@ function openTotals(type) {
                     </button>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4 rounded-lg bg-white p-5 shadow sm:grid-cols-4">
+                <div class="grid grid-cols-1 gap-4 rounded-lg bg-white p-5 shadow sm:grid-cols-3 lg:grid-cols-5">
                     <div>
                         <label class="text-xs font-medium text-gray-500">Pessoa</label>
                         <SelectInput v-model="filters.person_id" class="mt-1 block w-full" @change="applyFilters">
@@ -152,6 +180,14 @@ function openTotals(type) {
                         <SelectInput v-model="filters.category_id" class="mt-1 block w-full" @change="applyFilters">
                             <option value="">Todas as categorias</option>
                             <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                        </SelectInput>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-medium text-gray-500">Banco</label>
+                        <SelectInput v-model="filters.institution_id" class="mt-1 block w-full" @change="applyFilters">
+                            <option value="">Todos os bancos</option>
+                            <option v-for="i in institutions" :key="i.id" :value="i.id">{{ i.name }}</option>
                         </SelectInput>
                     </div>
 
@@ -265,7 +301,13 @@ function openTotals(type) {
                     <div v-if="categoryBreakdown.length > 0" class="mt-4 space-y-3">
                         <div v-for="(row, index) in categoryBreakdown" :key="row.category?.id ?? 'none'">
                             <div class="flex items-center justify-between text-sm">
-                                <span class="text-gray-700">{{ row.category?.name ?? 'Sem categoria' }}</span>
+                                <button
+                                    type="button"
+                                    class="text-gray-700 hover:text-indigo-600 hover:underline"
+                                    @click="openCategory(row)"
+                                >
+                                    {{ row.category?.name ?? 'Sem categoria' }}
+                                </button>
                                 <span class="font-medium text-gray-900">{{ formatMoney(row.amount) }}</span>
                             </div>
                             <div class="mt-1 h-2 w-full rounded-full bg-gray-100">
@@ -396,6 +438,59 @@ function openTotals(type) {
                         <tr v-if="selectedMonthTransactions.length === 0">
                             <td colspan="4" class="py-6 text-center text-sm text-gray-500">
                                 Nenhum lançamento neste mês.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </Modal>
+
+    <Modal :show="showCategoryModal" max-width="3xl" @close="showCategoryModal = false">
+        <div class="p-6">
+            <h2 class="text-lg font-medium text-gray-900">
+                Gastos em {{ hasSelectedCategory ? selectedCategory?.name : 'Sem categoria' }}
+            </h2>
+
+            <div class="mt-4 max-h-96 overflow-y-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="sticky top-0 bg-white">
+                        <tr class="border-b text-left text-xs uppercase tracking-wide text-gray-500">
+                            <th class="py-2 pr-4">Tipo</th>
+                            <th class="py-2 pr-4">Descrição</th>
+                            <th class="py-2 pr-4">Data</th>
+                            <th class="py-2 text-right">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr v-for="t in selectedCategoryTransactions" :key="t.id">
+                            <td class="py-2 pr-4">
+                                <span
+                                    class="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase"
+                                    :class="
+                                        t.source === 'credit_card'
+                                            ? 'bg-indigo-100 text-indigo-700'
+                                            : 'bg-gray-100 text-gray-600'
+                                    "
+                                >
+                                    {{ t.source === 'credit_card' ? 'Cartão' : 'Transação' }}
+                                </span>
+                            </td>
+                            <td class="py-2 pr-4 text-gray-900">
+                                {{ t.description }}
+                                <span v-if="t.installment_total" class="text-xs text-gray-500">
+                                    ({{ t.installment_number }}/{{ t.installment_total }})
+                                </span>
+                                <span class="block text-xs text-gray-500">{{ t.account }}</span>
+                            </td>
+                            <td class="py-2 pr-4 whitespace-nowrap text-gray-700">{{ formatDate(t.date) }}</td>
+                            <td class="py-2 text-right font-medium whitespace-nowrap text-red-600">
+                                -{{ formatMoney(t.amount) }}
+                            </td>
+                        </tr>
+                        <tr v-if="selectedCategoryTransactions.length === 0">
+                            <td colspan="4" class="py-6 text-center text-sm text-gray-500">
+                                Nenhum lançamento nesta categoria.
                             </td>
                         </tr>
                     </tbody>

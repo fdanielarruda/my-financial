@@ -10,6 +10,7 @@ use App\Http\Controllers\Finance\PersonController;
 use App\Http\Controllers\Finance\RecurringTransactionController;
 use App\Http\Controllers\Finance\ReportController;
 use App\Http\Controllers\Finance\StatementImportController;
+use App\Http\Controllers\Finance\TransactionClassificationController;
 use App\Http\Controllers\Finance\TransactionController;
 use App\Http\Controllers\Finance\TransferController;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,9 @@ Route::middleware(['auth', 'verified'])->prefix('finance')->name('finance.')->gr
     Route::get('transactions/quick', [TransactionController::class, 'quick'])->name('transactions.quick');
     Route::get('transactions/recent-by-bank', [TransactionController::class, 'recentByBank'])->name('transactions.recent-by-bank');
     Route::resource('transactions', TransactionController::class)->except(['show', 'create', 'edit'])->names('transactions');
+
+    Route::get('transactions-classification', [TransactionClassificationController::class, 'index'])->name('transaction-classification.index');
+    Route::post('transactions-classification', [TransactionClassificationController::class, 'confirm'])->name('transaction-classification.confirm');
 
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
 

@@ -7,6 +7,7 @@ use App\Enums\TransactionType;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\Category;
+use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
@@ -51,6 +52,10 @@ class ReportController extends Controller
                 fn ($q) => $q->whereHas('account', fn ($accountQuery) => $accountQuery->where('person_id', $request->integer('person_id')))
             )
             ->when($request->filled('category_id'), fn ($q) => $q->where('category_id', $request->integer('category_id')))
+            ->when(
+                $request->filled('institution_id'),
+                fn ($q) => $q->whereHas('account', fn ($accountQuery) => $accountQuery->where('institution_id', $request->integer('institution_id')))
+            )
             ->when($view === 'credit_card', fn ($q) => $q->whereNotNull('credit_card_invoice_id'))
             ->when(
                 $view === 'investments',
@@ -106,6 +111,7 @@ class ReportController extends Controller
                 'installment_total' => $t->installment_total,
                 'account' => $t->account->name,
                 'category' => $t->category?->name,
+                'category_id' => $t->category_id,
             ]))
             ->toArray();
 
@@ -153,9 +159,11 @@ class ReportController extends Controller
             'accountsSummary' => $accountsSummary,
             'people' => Person::orderBy('name')->get(),
             'categories' => Category::orderBy('name')->get(),
+            'institutions' => Institution::orderBy('name')->get(),
             'filters' => [
                 'person_id' => $request->input('person_id', ''),
                 'category_id' => $request->input('category_id', ''),
+                'institution_id' => $request->input('institution_id', ''),
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
                 'view' => $view,
