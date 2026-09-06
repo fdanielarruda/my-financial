@@ -23,6 +23,10 @@ const props = defineProps({
 
 const today = new Date().toISOString().slice(0, 10);
 
+const showTransient = ref(false);
+
+const visibleAccounts = computed(() => props.accounts.filter((a) => showTransient.value || !a.transient));
+
 /* ---------- Filtro por pessoa ---------- */
 
 const selectedPersonId = ref('');
@@ -219,6 +223,9 @@ function openEdit(transaction) {
 
     editing.value = primary;
     editForm.account_id = primary.account.id;
+    if (accounts.find((a) => a.id === primary.account.id)?.transient) {
+        showTransient.value = true;
+    }
     editForm.description = transaction.description;
     editForm.is_unknown = transaction.is_unknown;
     editForm.amount = transaction.amount;
@@ -689,13 +696,19 @@ const groupedByDay = computed(() => {
                             </div>
 
                             <div v-if="!splitEnabled">
-                                <InputLabel value="Conta" />
+                                <div class="flex items-center justify-between">
+                                    <InputLabel value="Conta" />
+                                    <label class="flex items-center gap-2 text-sm text-gray-600">
+                                        <Checkbox v-model:checked="showTransient" />
+                                        Exibir transeuntes
+                                    </label>
+                                </div>
                                 <div
                                     class="mt-1 grid gap-2"
-                                    :style="{ gridTemplateColumns: `repeat(${accounts.length || 1}, minmax(0, 1fr))` }"
+                                    :style="{ gridTemplateColumns: `repeat(${Math.min(visibleAccounts.length || 1, 4)}, minmax(0, 1fr))` }"
                                 >
                                     <button
-                                        v-for="a in accounts"
+                                        v-for="a in visibleAccounts"
                                         :key="a.id"
                                         type="button"
                                         class="w-full truncate rounded-md border px-3 py-2 text-sm font-medium"
@@ -1042,9 +1055,15 @@ const groupedByDay = computed(() => {
                 </div>
 
                 <div v-if="!editSplitEnabled">
-                    <InputLabel for="edit_account_id" value="Conta" />
+                    <div class="flex items-center justify-between">
+                        <InputLabel for="edit_account_id" value="Conta" />
+                        <label class="flex items-center gap-2 text-sm text-gray-600">
+                            <Checkbox v-model:checked="showTransient" />
+                            Exibir transeuntes
+                        </label>
+                    </div>
                     <SelectInput id="edit_account_id" v-model="editForm.account_id" class="mt-1 block w-full">
-                        <option v-for="a in accounts" :key="a.id" :value="a.id">
+                        <option v-for="a in visibleAccounts" :key="a.id" :value="a.id">
                             {{ a.name }}
                         </option>
                     </SelectInput>

@@ -55,7 +55,15 @@ class CreditCardInvoiceController extends Controller
                 ->where('institution_id', $creditCard->institution_id)
                 ->whereNull('archived_at')
                 ->orderBy('name')
-                ->get(),
+                ->get()
+                ->map(fn (Account $account) => [
+                    'id' => $account->id,
+                    'name' => $account->name,
+                    'type' => $account->type->value,
+                    'transient' => $account->transient,
+                    'person' => $account->person,
+                    'institution' => $account->institution,
+                ]),
             'categories' => Category::orderBy('name')->get(),
         ]);
     }
