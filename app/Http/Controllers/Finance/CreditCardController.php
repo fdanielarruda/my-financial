@@ -16,12 +16,18 @@ class CreditCardController extends Controller
 {
     public function index(Request $request): Response
     {
+        $month = $request->filled('month')
+            ? \Illuminate\Support\Carbon::parse($request->string('month').'-01')
+            : \Illuminate\Support\Carbon::now()->startOfMonth();
+
+        $month = $month->min(\App\Models\Transaction::recurringCapMonth());
+
         $cards = CreditCard::with(['institution', 'paymentAccount'])
             ->where('user_id', $request->user()->id)
             ->orderBy('name')
             ->get()
-            ->map(function (CreditCard $card) {
-                $invoice = $card->currentInvoice();
+            ->map(function (CreditCard $card) use ($month) {
+                $invoice = $card->invoiceForMonth($month);
 
                 return [
                     'id' => $card->id,
@@ -31,16 +37,17 @@ class CreditCardController extends Controller
                     'closing_day' => $card->closing_day,
                     'due_day' => $card->due_day,
                     'payment_account_id' => $card->payment_account_id,
-                    'open_invoice_total' => $card->openInvoiceTotal(),
+                    'open_invoice_total' => $invoice->total(),
                     'available_limit' => $card->availableLimit(),
-                    'current_invoice_id' => $invoice?->id,
-                    'due_date' => $invoice?->due_date,
+                    'current_invoice_id' => $invoice->id,
+                    'due_date' => $invoice->due_date,
                 ];
             });
 
         return Inertia::render('Finance/CreditCards/Index', [
             'cards' => $cards,
             'institutions' => Institution::orderBy('name')->get(),
+            'month' => $month->format('Y-m'),
         ]);
     }
 

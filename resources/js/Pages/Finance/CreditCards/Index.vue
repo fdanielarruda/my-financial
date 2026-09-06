@@ -8,13 +8,31 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import SelectInput from '@/Components/SelectInput.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { formatDate, formatMoney } from '@/finance';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 const props = defineProps({
     cards: Array,
     institutions: Array,
+    month: String,
 });
+
+function addMonths(monthString, delta) {
+    const [year, month] = monthString.split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1 + delta, 1));
+
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function monthLabel(monthString) {
+    const [year, month] = monthString.split('-').map(Number);
+
+    return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+
+function goToMonth(monthString) {
+    router.get(route('finance.credit-cards.index'), { month: monthString }, { preserveState: true, preserveScroll: true });
+}
 
 const showModal = ref(false);
 const editing = ref(null);
@@ -67,7 +85,26 @@ function submit() {
 
         <div class="py-12">
             <div class="mx-auto max-w-4xl space-y-6 sm:px-6 lg:px-8">
-                <div class="flex justify-end">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <button
+                            type="button"
+                            class="rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
+                            @click="goToMonth(addMonths(month, -1))"
+                        >
+                            ←
+                        </button>
+                        <span class="min-w-[9rem] text-center text-sm font-medium capitalize text-gray-700">
+                            {{ monthLabel(month) }}
+                        </span>
+                        <button
+                            type="button"
+                            class="rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
+                            @click="goToMonth(addMonths(month, 1))"
+                        >
+                            →
+                        </button>
+                    </div>
                     <PrimaryButton @click="openCreate">Novo cartão</PrimaryButton>
                 </div>
 
