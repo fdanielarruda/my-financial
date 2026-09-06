@@ -10,6 +10,8 @@ import { computed, reactive, ref, watch } from 'vue';
 
 const props = defineProps({
     transactions: Array,
+    classifiedTransactions: Array,
+    classifiedCategories: Array,
     categories: Array,
     people: Array,
     institutions: Array,
@@ -24,7 +26,43 @@ const filters = reactive({
     institution_id: props.filters.institution_id ?? '',
     kind: props.filters.kind ?? 'transactions',
     hide_classified: props.filters.hide_classified ?? true,
+    tab: props.filters.tab ?? 'classify',
+    category_ids: props.filters.category_ids ?? [],
 });
+
+function toggleCategoryFilter(categoryId) {
+    const index = filters.category_ids.indexOf(categoryId);
+    if (index === -1) {
+        filters.category_ids.push(categoryId);
+    } else {
+        filters.category_ids.splice(index, 1);
+    }
+    applyFilters();
+}
+
+const classifiedByCategory = computed(() => {
+    const groups = new Map();
+    for (const category of props.classifiedCategories) {
+        if (filters.category_ids.length === 0 || filters.category_ids.includes(category.id)) {
+            groups.set(category.id, { category, rows: [] });
+        }
+    }
+    for (const t of props.classifiedTransactions) {
+        const group = groups.get(t.category_id);
+        if (group) {
+            group.rows.push(t);
+        }
+    }
+    return Array.from(groups.values()).filter((g) => g.rows.length > 0);
+});
+
+function updateClassifiedCategory(row, categoryId) {
+    router.post(
+        route('finance.transaction-classification.confirm'),
+        { items: [{ transaction_id: row.id, category_id: categoryId || null }] },
+        { preserveScroll: true }
+    );
+}
 
 function applyFilters() {
     router.get(route('finance.transaction-classification.index'), filters, { preserveState: true, replace: true });
@@ -93,16 +131,30 @@ function submit() {
         <div class="py-12">
             <div class="mx-auto max-w-6xl space-y-6 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between rounded-lg bg-white p-4 shadow">
-                    <p class="text-sm text-gray-600">
-                        A IA sugere uma categoria para cada lançamento. Revise e ajuste antes de confirmar — nada é
-                        salvo até você confirmar.
-                    </p>
+                    <div class="flex rounded-md bg-gray-100 p-1 text-sm">
+                        <button
+                            type="button"
+                            class="rounded px-3 py-1 font-medium"
+                            :class="filters.tab === 'classify' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'"
+                            @click="filters.tab = 'classify'; applyFilters()"
+                        >
+                            Classificar
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded px-3 py-1 font-medium"
+                            :class="filters.tab === 'classified' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'"
+                            @click="filters.tab = 'classified'; applyFilters()"
+                        >
+                            Já classificadas
+                        </button>
+                    </div>
                     <Link :href="route('finance.transactions.index')">
                         <SecondaryButton type="button">Voltar</SecondaryButton>
                     </Link>
                 </div>
 
-                <div class="space-y-4 rounded-lg bg-white p-5 shadow">
+                <div v-if="filters.tab === 'classify'" class="space-y-4 rounded-lg bg-white p-5 shadow">
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         <div>
                             <label class="text-xs font-medium text-gray-500">Pessoa</label>
@@ -169,32 +221,162 @@ function submit() {
                     </div>
                 </div>
 
-                <div v-if="error" class="rounded-lg bg-red-50 p-4 text-sm text-red-700 shadow">
-                    {{ error }}
-                </div>
+                <template v-if="filters.tab === 'classify'">
+                    <div v-if="error" class="rounded-lg bg-red-50 p-4 text-sm text-red-700 shadow">
+                        {{ error }}
+                    </div>
 
-                <div v-if="rows.length === 0" class="rounded-lg bg-white p-6 text-sm text-gray-500 shadow">
-                    Nenhum lançamento encontrado com os filtros selecionados.
-                </div>
+                    <div v-if="rows.length === 0" class="rounded-lg bg-white p-6 text-sm text-gray-500 shadow">
+                        Nenhum lançamento encontrado com os filtros selecionados.
+                    </div>
+
+                    <template v-else>
+                        <div class="overflow-x-auto rounded-lg bg-white shadow">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead class="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-500">
+                                    <tr>
+                                        <th class="px-3 py-3"></th>
+                                        <th class="px-3 py-3">Data</th>
+                                        <th class="px-3 py-3">Descrição</th>
+                                        <th class="px-3 py-3">Conta</th>
+                                        <th class="px-3 py-3 text-right">Valor</th>
+                                        <th class="px-3 py-3">Categoria sugerida</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr v-for="row in rows" :key="row.transaction_id">
+                                        <td class="px-3 py-2 align-top">
+                                            <input v-model="row.include" type="checkbox" class="mt-2 rounded border-gray-300 text-indigo-600" />
+                                        </td>
+                                        <td class="px-3 py-2 align-top whitespace-nowrap text-gray-700">{{ formatDate(row.date) }}</td>
+                                        <td class="px-3 py-2 align-top text-gray-900">{{ row.description }}</td>
+                                        <td class="px-3 py-2 align-top text-xs text-gray-500">{{ row.account }}</td>
+                                        <td
+                                            class="px-3 py-2 align-top text-right font-medium whitespace-nowrap"
+                                            :class="row.type === 'income' ? 'text-green-600' : 'text-red-600'"
+                                        >
+                                            {{ row.type === 'income' ? '+' : '-' }}{{ formatMoney(row.amount) }}
+                                        </td>
+                                        <td class="px-3 py-2 align-top">
+                                            <SelectInput v-model="row.category_id" class="block w-48" :disabled="!row.include">
+                                                <option value="">Sem categoria</option>
+                                                <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                            </SelectInput>
+                                            <p v-if="row.suggested" class="mt-1 text-xs text-indigo-600">Sugerido pela IA</p>
+                                            <p v-else-if="row.already_classified" class="mt-1 text-xs text-gray-500">Já categorizado</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="flex items-center justify-between rounded-lg bg-white p-4 shadow">
+                            <div class="text-sm text-gray-600">
+                                {{ suggestedCount }} de {{ rows.length }} com sugestão da IA · {{ includedCount }} selecionado(s)
+                            </div>
+                            <PrimaryButton :disabled="form.processing || includedCount === 0" @click="submit">
+                                Confirmar categorias ({{ includedCount }})
+                            </PrimaryButton>
+                        </div>
+                    </template>
+                </template>
 
                 <template v-else>
-                    <div class="overflow-x-auto rounded-lg bg-white shadow">
+                    <div class="space-y-4 rounded-lg bg-white p-5 shadow">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            <div>
+                                <label class="text-xs font-medium text-gray-500">Pessoa</label>
+                                <SelectInput v-model="filters.person_id" class="mt-1 block w-full" @change="applyFilters">
+                                    <option value="">Todas as pessoas</option>
+                                    <option v-for="p in people" :key="p.id" :value="p.id">{{ p.name }}</option>
+                                </SelectInput>
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-medium text-gray-500">Banco</label>
+                                <SelectInput v-model="filters.institution_id" class="mt-1 block w-full" @change="applyFilters">
+                                    <option value="">Todos os bancos</option>
+                                    <option v-for="i in institutions" :key="i.id" :value="i.id">{{ i.name }}</option>
+                                </SelectInput>
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-medium text-gray-500">De</label>
+                                <TextInput v-model="filters.from" type="date" class="mt-1 block w-full" @change="applyFilters" />
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-medium text-gray-500">Até</label>
+                                <TextInput v-model="filters.to" type="date" class="mt-1 block w-full" @change="applyFilters" />
+                            </div>
+                        </div>
+
+                        <div class="flex rounded-md bg-gray-100 p-1 text-sm w-fit">
+                            <button
+                                type="button"
+                                class="rounded px-3 py-1 font-medium"
+                                :class="filters.kind === 'transactions' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'"
+                                @click="filters.kind = 'transactions'; applyFilters()"
+                            >
+                                Transações
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded px-3 py-1 font-medium"
+                                :class="filters.kind === 'credit_card' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'"
+                                @click="filters.kind = 'credit_card'; applyFilters()"
+                            >
+                                Cartão
+                            </button>
+                        </div>
+
+                        <div class="border-t pt-4">
+                            <label class="text-xs font-medium text-gray-500">Categorias exibidas</label>
+                            <p class="mb-2 text-xs text-gray-400">
+                                Nenhuma selecionada = mostra todas as categorias com lançamentos classificados.
+                            </p>
+                            <div class="flex flex-wrap gap-2">
+                                <button
+                                    v-for="c in classifiedCategories"
+                                    :key="c.id"
+                                    type="button"
+                                    class="rounded-full border px-3 py-1 text-xs font-medium"
+                                    :class="
+                                        filters.category_ids.includes(c.id)
+                                            ? 'border-indigo-600 bg-indigo-600 text-white'
+                                            : 'border-gray-300 text-gray-600 hover:border-indigo-400'
+                                    "
+                                    @click="toggleCategoryFilter(c.id)"
+                                >
+                                    {{ c.name }} ({{ c.count }})
+                                </button>
+                                <p v-if="classifiedCategories.length === 0" class="text-sm text-gray-400">
+                                    Nenhuma categoria classificada encontrada.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="classifiedByCategory.length === 0" class="rounded-lg bg-white p-6 text-sm text-gray-500 shadow">
+                        Nenhum lançamento classificado encontrado com os filtros selecionados.
+                    </div>
+
+                    <div v-for="group in classifiedByCategory" :key="group.category.id" class="overflow-x-auto rounded-lg bg-white shadow">
+                        <div class="border-b bg-gray-50 px-4 py-3">
+                            <h3 class="text-sm font-semibold text-gray-800">{{ group.category.name }}</h3>
+                        </div>
                         <table class="min-w-full divide-y divide-gray-200 text-sm">
                             <thead class="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-500">
                                 <tr>
-                                    <th class="px-3 py-3"></th>
                                     <th class="px-3 py-3">Data</th>
                                     <th class="px-3 py-3">Descrição</th>
                                     <th class="px-3 py-3">Conta</th>
                                     <th class="px-3 py-3 text-right">Valor</th>
-                                    <th class="px-3 py-3">Categoria sugerida</th>
+                                    <th class="px-3 py-3">Categoria</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
-                                <tr v-for="row in rows" :key="row.transaction_id">
-                                    <td class="px-3 py-2 align-top">
-                                        <input v-model="row.include" type="checkbox" class="mt-2 rounded border-gray-300 text-indigo-600" />
-                                    </td>
+                                <tr v-for="row in group.rows" :key="row.id">
                                     <td class="px-3 py-2 align-top whitespace-nowrap text-gray-700">{{ formatDate(row.date) }}</td>
                                     <td class="px-3 py-2 align-top text-gray-900">{{ row.description }}</td>
                                     <td class="px-3 py-2 align-top text-xs text-gray-500">{{ row.account }}</td>
@@ -205,25 +387,18 @@ function submit() {
                                         {{ row.type === 'income' ? '+' : '-' }}{{ formatMoney(row.amount) }}
                                     </td>
                                     <td class="px-3 py-2 align-top">
-                                        <SelectInput v-model="row.category_id" class="block w-48" :disabled="!row.include">
+                                        <SelectInput
+                                            :model-value="row.category_id"
+                                            class="block w-48"
+                                            @update:model-value="(value) => updateClassifiedCategory(row, value)"
+                                        >
                                             <option value="">Sem categoria</option>
                                             <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
                                         </SelectInput>
-                                        <p v-if="row.suggested" class="mt-1 text-xs text-indigo-600">Sugerido pela IA</p>
-                                        <p v-else-if="row.already_classified" class="mt-1 text-xs text-gray-500">Já categorizado</p>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
-
-                    <div class="flex items-center justify-between rounded-lg bg-white p-4 shadow">
-                        <div class="text-sm text-gray-600">
-                            {{ suggestedCount }} de {{ rows.length }} com sugestão da IA · {{ includedCount }} selecionado(s)
-                        </div>
-                        <PrimaryButton :disabled="form.processing || includedCount === 0" @click="submit">
-                            Confirmar categorias ({{ includedCount }})
-                        </PrimaryButton>
                     </div>
                 </template>
             </div>

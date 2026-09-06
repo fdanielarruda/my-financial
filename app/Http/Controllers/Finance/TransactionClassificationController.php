@@ -26,14 +26,18 @@ class TransactionClassificationController extends Controller
     {
         $kind = $request->input('kind') === 'credit_card' ? 'credit_card' : 'transactions';
         $hideClassified = $request->boolean('hide_classified', true);
+        $tab = $request->input('tab') === 'classified' ? 'classified' : 'classify';
+        $categoryIds = collect($request->input('category_ids', []))
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
 
-        $transactions = Transaction::query()
+        $baseFilters = fn ($query) => $query
             ->where('user_id', Auth::id())
             ->whereNull('transfer_id')
             ->when($kind === 'credit_card', fn ($q) => $q->whereNotNull('credit_card_invoice_id'))
             ->when($kind === 'transactions', fn ($q) => $q->whereNull('credit_card_invoice_id'))
-            ->when($hideClassified, fn ($q) => $q->whereNull('category_id'))
-            ->with('account')
             ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->date('from')))
             ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->date('to')))
             ->when(
@@ -43,22 +47,46 @@ class TransactionClassificationController extends Controller
             ->when(
                 $request->filled('institution_id'),
                 fn ($q) => $q->whereHas('account', fn ($accountQuery) => $accountQuery->where('institution_id', $request->integer('institution_id')))
-            )
-            ->orderByDesc('date')
-            ->limit(50)
-            ->get();
+            );
 
         $categories = Category::orderBy('name')->get();
 
+        $transactions = collect();
         $error = null;
         $suggestions = collect();
+        $classifiedTransactions = collect();
+        $classifiedCategories = collect();
 
-        if ($request->boolean('classify')) {
-            try {
-                $suggestions = collect((new TransactionClassifier)->classify($transactions->whereNull('category_id'), $categories))
-                    ->keyBy('transaction_id');
-            } catch (RuntimeException $exception) {
-                $error = $exception->getMessage();
+        if ($tab === 'classified') {
+            $classifiedCategories = Category::query()
+                ->withCount(['transactions' => fn ($q) => $baseFilters($q)->whereNotNull('category_id')])
+                ->orderBy('name')
+                ->get()
+                ->filter(fn (Category $category) => $category->transactions_count > 0)
+                ->values();
+
+            $classifiedTransactions = $baseFilters(Transaction::query())
+                ->whereNotNull('category_id')
+                ->when(! empty($categoryIds), fn ($q) => $q->whereIn('category_id', $categoryIds))
+                ->with('account')
+                ->orderByDesc('date')
+                ->limit(500)
+                ->get();
+        } else {
+            $transactions = $baseFilters(Transaction::query())
+                ->when($hideClassified, fn ($q) => $q->whereNull('category_id'))
+                ->with('account')
+                ->orderByDesc('date')
+                ->limit(50)
+                ->get();
+
+            if ($request->boolean('classify')) {
+                try {
+                    $suggestions = collect((new TransactionClassifier)->classify($transactions->whereNull('category_id'), $categories))
+                        ->keyBy('transaction_id');
+                } catch (RuntimeException $exception) {
+                    $error = $exception->getMessage();
+                }
             }
         }
 
@@ -73,6 +101,20 @@ class TransactionClassificationController extends Controller
                 'category_id' => $transaction->category_id,
                 'suggested_category_id' => $suggestions[$transaction->id]['category_id'] ?? null,
             ]),
+            'classifiedTransactions' => $classifiedTransactions->map(fn (Transaction $transaction) => [
+                'id' => $transaction->id,
+                'date' => $transaction->date->toDateString(),
+                'description' => $transaction->description,
+                'type' => $transaction->type->value,
+                'amount' => (string) $transaction->amount,
+                'account' => $transaction->account->name,
+                'category_id' => $transaction->category_id,
+            ]),
+            'classifiedCategories' => $classifiedCategories->map(fn (Category $category) => [
+                'id' => $category->id,
+                'name' => $category->name,
+                'count' => $category->transactions_count,
+            ]),
             'categories' => $categories,
             'people' => Person::orderBy('name')->get(),
             'institutions' => Institution::orderBy('name')->get(),
@@ -83,6 +125,8 @@ class TransactionClassificationController extends Controller
                 'institution_id' => $request->input('institution_id', ''),
                 'kind' => $kind,
                 'hide_classified' => $hideClassified,
+                'tab' => $tab,
+                'category_ids' => $categoryIds,
             ],
             'error' => $error,
         ]);
@@ -110,7 +154,7 @@ class TransactionClassificationController extends Controller
             $transactions->get($item['transaction_id'])?->update(['category_id' => $item['category_id'] ?? null]);
         }
 
-        return Redirect::route('finance.transaction-classification.index')
+        return Redirect::back()
             ->with('success', count($data['items']).' lançamento(s) categorizado(s).');
     }
 }
