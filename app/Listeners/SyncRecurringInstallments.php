@@ -26,6 +26,7 @@ class SyncRecurringInstallments
             ->where('is_recurring', true)
             ->distinct()
             ->pluck('installment_group_id')
+            ->filter()
             ->each(fn (string $groupId) => Transaction::extendRecurringGroup($groupId));
 
         $user->forceFill(['recurring_synced_month' => $currentMonth])->save();
