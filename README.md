@@ -1,58 +1,96 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# My Financial
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplicação de gestão financeira pessoal/familiar construída com Laravel, Inertia.js e Vue 3. Centraliza contas, cartões de crédito, transações e contas recorrentes de várias pessoas, e usa a OpenAI para ajudar a importar e classificar extratos.
 
-## About Laravel
+## Funcionalidades
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Contas e pessoas** — acompanhamento de saldos em múltiplas contas, agrupados por pessoa, com suporte a arquivamento de contas antigas.
+- **Cartões de crédito e faturas** — gerenciamento de cartões, compras, parcelamentos, pagamento de faturas, divisão de parcelas e estornos.
+- **Transações** — CRUD completo com lançamento rápido, visualização recente por banco, transferências entre contas e divisão de transações.
+- **Transações recorrentes** — agendamento de receitas/despesas recorrentes que geram transações futuras automaticamente (comando `GenerateRecurringTransactions`).
+- **Importação de extratos** — upload de extratos de banco/cartão com extração automática das transações via OpenAI, para revisão antes de confirmar.
+- **Classificação de transações** — categorização assistida por IA, com fluxo de revisão/confirmação.
+- **Relatórios e dashboard** — patrimônio líquido, saldos por pessoa, faturas em aberto e transações recorrentes futuras em um só lugar.
+- **Valores a receber/pagar** — controle de valores devidos entre pessoas.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Stack Tecnológica
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Backend:** PHP 8.3, Laravel 13, Inertia Laravel, Laravel Sanctum
+- **Frontend:** Vue 3, Inertia.js, Tailwind CSS, Vite
+- **IA:** [openai-php/laravel](https://github.com/openai-php/laravel) para extração de extratos e classificação de transações
+- **Banco de dados:** SQLite por padrão (configurável via `.env`)
+- **Testes:** PHPUnit
 
-## Learning Laravel
+## Requisitos
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- PHP >= 8.3 com as extensões exigidas pelo Laravel
+- Composer
+- Node.js e npm
+- Uma chave de API da OpenAI (para as funcionalidades de importação de extratos e classificação de transações)
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Como começar
 
 ```bash
-composer require laravel/boost --dev
+# Instalar dependências PHP
+composer install
 
-php artisan boost:install
+# Copiar o arquivo de ambiente e gerar a chave da aplicação
+cp .env.example .env
+php artisan key:generate
+
+# Configurar o banco de dados (SQLite por padrão)
+touch database/database.sqlite
+php artisan migrate
+
+# Instalar dependências JS
+npm install
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Configure suas credenciais da OpenAI no `.env`:
 
-## Contributing
+```
+OPENAI_API_KEY=sua-chave-aqui
+OPENAI_MODEL=gpt-5
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Rodando a aplicação
 
-## Code of Conduct
+```bash
+composer dev
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Esse comando roda simultaneamente o servidor PHP, o listener da fila, o log tailer (Pail) e o servidor de desenvolvimento do Vite.
 
-## Security Vulnerabilities
+Alternativamente, rode cada parte separadamente:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+php artisan serve
+php artisan queue:listen
+npm run dev
+```
 
-## License
+## Comandos agendados
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- `php artisan app:generate-recurring-transactions` — gera transações a partir das regras recorrentes ativas.
+- `php artisan app:close-credit-card-invoices` — fecha faturas de cartão de crédito cujo ciclo já terminou.
+
+Certifique-se de que o scheduler do Laravel esteja rodando em produção (`php artisan schedule:run` via cron) para que esses comandos sejam executados automaticamente.
+
+## Testes
+
+```bash
+composer test
+```
+
+## Estrutura do projeto
+
+- `app/Models` — models Eloquent (Account, Transaction, CreditCard, Person, RecurringTransaction, etc.)
+- `app/Http/Controllers/Finance` — controllers dos recursos financeiros
+- `app/Services/StatementImport` — lógica de extração de extratos (assistida por IA)
+- `app/Services/TransactionClassification` — lógica de categorização de transações (assistida por IA)
+- `resources/js/Pages/Finance` — páginas Vue do módulo financeiro
+- `routes/finance.php` — rotas relacionadas ao módulo financeiro
+
+## Licença
+
+Este é um projeto pessoal privado. Não há licença concedida para reutilização.
