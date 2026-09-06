@@ -82,6 +82,10 @@ const transferForm = useForm({
 
 watch(isTransfer, (value) => {
     if (value) {
+        if (!form.description) {
+            form.description = 'Transferência';
+        }
+
         transferForm.from_account_id = form.account_id;
         transferForm.amount = form.amount;
         transferForm.description = form.description;
