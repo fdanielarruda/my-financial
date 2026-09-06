@@ -223,7 +223,7 @@ function openEdit(transaction) {
 
     editing.value = primary;
     editForm.account_id = primary.account.id;
-    if (accounts.find((a) => a.id === primary.account.id)?.transient) {
+    if (props.accounts.find((a) => a.id === primary.account.id)?.transient) {
         showTransient.value = true;
     }
     editForm.description = transaction.description;
