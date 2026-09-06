@@ -27,6 +27,8 @@ const filters = reactive({
     from: props.filters.from ?? '',
     to: props.filters.to ?? '',
     kind: props.filters.kind ?? '',
+    min_amount: props.filters.min_amount ?? '',
+    max_amount: props.filters.max_amount ?? '',
 });
 
 const accountsForFilterBank = computed(() =>
@@ -184,6 +186,49 @@ function bankLabel(transaction) {
     return transaction.account.institution?.name ?? 'Dinheiro';
 }
 
+/* ---------- Conferência (checklist local) ---------- */
+
+const checkedStorageKey = 'transactions-index-checked';
+
+function loadCheckedIds() {
+    try {
+        const raw = localStorage.getItem(checkedStorageKey);
+        return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch {
+        return new Set();
+    }
+}
+
+const checkedIds = ref(loadCheckedIds());
+
+watch(
+    checkedIds,
+    (value) => {
+        localStorage.setItem(checkedStorageKey, JSON.stringify([...value]));
+    },
+    { deep: true }
+);
+
+function isChecked(transaction) {
+    return checkedIds.value.has(transaction.id);
+}
+
+function toggleChecked(transaction) {
+    const next = new Set(checkedIds.value);
+
+    isChecked(transaction) ? next.delete(transaction.id) : next.add(transaction.id);
+
+    checkedIds.value = next;
+}
+
+const allChecked = computed(
+    () => props.transactions.data.length > 0 && props.transactions.data.every((t) => checkedIds.value.has(t.id))
+);
+
+function toggleCheckAll() {
+    checkedIds.value = allChecked.value ? new Set() : new Set(props.transactions.data.map((t) => t.id));
+}
+
 const groupedByDay = computed(() => {
     const groups = new Map();
 
@@ -262,10 +307,38 @@ const groupedByDay = computed(() => {
                             <InputLabel value="Até" />
                             <TextInput v-model="filters.to" type="date" class="mt-1 block w-full" @change="applyFilters" />
                         </div>
+
+                        <div>
+                            <InputLabel value="Valor mínimo" />
+                            <TextInput
+                                v-model="filters.min_amount"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                class="mt-1 block w-full"
+                                @change="applyFilters"
+                            />
+                        </div>
+
+                        <div>
+                            <InputLabel value="Valor máximo" />
+                            <TextInput
+                                v-model="filters.max_amount"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                class="mt-1 block w-full"
+                                @change="applyFilters"
+                            />
+                        </div>
                     </div>
                 </div>
 
                 <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+                    <div v-if="transactions.data.length > 0" class="flex items-center gap-2 border-b bg-gray-50 px-4 py-2 sm:px-6">
+                        <Checkbox :checked="allChecked" @update:checked="toggleCheckAll" />
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Marcar todas</span>
+                    </div>
                     <div v-for="group in groupedByDay" :key="group.date">
                         <div class="bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 sm:px-6">
                             {{ formatDate(group.date) }}
@@ -276,7 +349,9 @@ const groupedByDay = computed(() => {
                                 :key="transaction.id"
                                 class="flex items-center justify-between px-4 py-3 sm:px-6"
                             >
-                                <div>
+                                <div class="flex items-center gap-3">
+                                    <Checkbox :checked="isChecked(transaction)" @update:checked="toggleChecked(transaction)" />
+                                    <div>
                                     <p class="text-gray-900">
                                         {{ transaction.description }}
                                         <span v-if="transaction.installment_total" class="text-xs text-gray-500">
@@ -311,6 +386,7 @@ const groupedByDay = computed(() => {
                                         {{ bankLabel(transaction) }} / {{ transaction.account.name }}
                                         <template v-if="transaction.category"> · {{ transaction.category.name }}</template>
                                     </p>
+                                    </div>
                                 </div>
                                 <div class="flex items-center gap-3">
                                     <span :class="transaction.type === 'income' ? 'text-green-600' : 'text-red-600'">

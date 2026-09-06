@@ -228,7 +228,8 @@ const groupedByDay = computed(() => {
                                         {{ transfer.description || 'Transferência' }}
                                     </p>
                                     <p class="text-xs text-gray-500">
-                                        {{ transfer.from_account.name }} → {{ transfer.to_account.name }}
+                                        {{ transfer.from_account.name }} ({{ accountBankLabel(transfer.from_account) }}) →
+                                        {{ transfer.to_account.name }} ({{ accountBankLabel(transfer.to_account) }})
                                     </p>
                                 </div>
                                 <div class="flex items-center gap-3">
