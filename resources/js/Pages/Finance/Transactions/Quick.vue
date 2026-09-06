@@ -117,6 +117,33 @@ function submitTransfer() {
     });
 }
 
+const cardOrder = reactive(JSON.parse(localStorage.getItem('quickCardOrder') ?? '[]'));
+
+function saveCardOrder() {
+    localStorage.setItem('quickCardOrder', JSON.stringify(cardOrder));
+}
+
+function cardOrderIndex(key) {
+    const index = cardOrder.indexOf(key);
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+function moveCard(key, direction) {
+    const list = bankCards.value;
+    const index = list.findIndex((c) => c.key === key);
+    const targetIndex = index + direction;
+
+    if (index === -1 || targetIndex < 0 || targetIndex >= list.length) {
+        return;
+    }
+
+    const currentOrder = list.map((c) => c.key);
+    [currentOrder[index], currentOrder[targetIndex]] = [currentOrder[targetIndex], currentOrder[index]];
+
+    cardOrder.splice(0, cardOrder.length, ...currentOrder);
+    saveCardOrder();
+}
+
 const bankGroups = computed(() => {
     const groups = new Map();
 
@@ -147,6 +174,25 @@ const bankGroups = computed(() => {
     }
 
     return [...groups.values()].sort((a, b) => a.bank.localeCompare(b.bank));
+});
+
+const bankCards = computed(() => {
+    const cards = [];
+
+    for (const group of bankGroups.value) {
+        if (group.accounts.length > 0) {
+            cards.push({ key: `${group.bank}::normal`, kind: 'normal', group });
+        }
+
+        if (group.investmentAccounts.length > 0) {
+            cards.push({ key: `${group.bank}::invest`, kind: 'invest', group });
+        }
+    }
+
+    return cards.sort((a, b) => {
+        const diff = cardOrderIndex(a.key) - cardOrderIndex(b.key);
+        return diff !== 0 ? diff : a.key.localeCompare(b.key);
+    });
 });
 
 const showRecentModal = ref(false);
@@ -366,30 +412,70 @@ function submit(type) {
 
                 <div class="rounded-lg bg-white p-5 shadow">
                     <h3 class="text-sm font-semibold text-gray-700">Saldos</h3>
-                    <div v-for="group in bankGroups" :key="group.bank" class="mt-4 space-y-3 first:mt-3">
-                        <div v-if="group.accounts.length > 0" class="rounded-md border border-gray-200 p-3">
-                            <div class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                {{ group.bank }}
+                    <div
+                        v-for="(card, cardIndex) in bankCards"
+                        :key="card.key"
+                        class="mt-4 space-y-3 first:mt-3"
+                    >
+                        <div
+                            class="rounded-md border p-3"
+                            :class="card.kind === 'invest' ? 'border-gray-200' : 'border-gray-200'"
+                        >
+                            <div
+                                class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide"
+                                :class="card.kind === 'invest' ? 'text-indigo-500' : 'text-gray-500'"
+                            >
+                                {{ card.group.bank }}{{ card.kind === 'invest' ? ' · Investimentos' : '' }}
                                 <button
                                     type="button"
                                     title="Ver últimas transações"
-                                    class="flex h-4 w-4 items-center justify-center rounded-full border border-gray-400 text-[10px] font-bold normal-case text-gray-500 hover:border-indigo-600 hover:text-indigo-600"
-                                    @click="openRecent(group)"
+                                    class="flex h-4 w-4 items-center justify-center rounded-full border text-[10px] font-bold normal-case"
+                                    :class="
+                                        card.kind === 'invest'
+                                            ? 'border-indigo-400 text-indigo-500 hover:border-indigo-600 hover:text-indigo-700'
+                                            : 'border-gray-400 text-gray-500 hover:border-indigo-600 hover:text-indigo-600'
+                                    "
+                                    @click="openRecent(card.group)"
                                 >
                                     i
                                 </button>
                                 <button
                                     type="button"
-                                    :title="collapsedGroups.has(group.bank) ? 'Mostrar conta' : 'Esconder conta'"
-                                    class="flex h-4 w-4 items-center justify-center rounded-full border border-gray-400 text-[10px] font-bold normal-case text-gray-500 hover:border-indigo-600 hover:text-indigo-600"
-                                    @click="toggleGroup(group.bank)"
+                                    :title="collapsedGroups.has(card.key) ? 'Mostrar conta' : 'Esconder conta'"
+                                    class="flex h-4 w-4 items-center justify-center rounded-full border text-[10px] font-bold normal-case"
+                                    :class="
+                                        card.kind === 'invest'
+                                            ? 'border-indigo-400 text-indigo-500 hover:border-indigo-600 hover:text-indigo-700'
+                                            : 'border-gray-400 text-gray-500 hover:border-indigo-600 hover:text-indigo-600'
+                                    "
+                                    @click="toggleGroup(card.key)"
                                 >
-                                    {{ collapsedGroups.has(group.bank) ? '+' : '−' }}
+                                    {{ collapsedGroups.has(card.key) ? '+' : '−' }}
                                 </button>
+                                <span class="ml-auto flex items-center gap-0.5">
+                                    <button
+                                        type="button"
+                                        title="Mover para cima"
+                                        class="flex h-4 w-4 items-center justify-center rounded-full border border-gray-400 text-[10px] font-bold normal-case text-gray-500 hover:border-indigo-600 hover:text-indigo-600 disabled:opacity-30"
+                                        :disabled="cardIndex === 0"
+                                        @click="moveCard(card.key, -1)"
+                                    >
+                                        ▲
+                                    </button>
+                                    <button
+                                        type="button"
+                                        title="Mover para baixo"
+                                        class="flex h-4 w-4 items-center justify-center rounded-full border border-gray-400 text-[10px] font-bold normal-case text-gray-500 hover:border-indigo-600 hover:text-indigo-600 disabled:opacity-30"
+                                        :disabled="cardIndex === bankCards.length - 1"
+                                        @click="moveCard(card.key, 1)"
+                                    >
+                                        ▼
+                                    </button>
+                                </span>
                             </div>
-                            <ul v-if="!collapsedGroups.has(group.bank)" class="mt-1 divide-y divide-gray-100">
+                            <ul v-if="!collapsedGroups.has(card.key)" class="mt-1 divide-y divide-gray-100">
                                 <li
-                                    v-for="a in group.accounts"
+                                    v-for="a in card.kind === 'invest' ? card.group.investmentAccounts : card.group.accounts"
                                     :key="a.id"
                                     class="flex items-center justify-between py-2 text-sm"
                                 >
@@ -405,58 +491,21 @@ function submit(type) {
                                     </span>
                                 </li>
                                 <li class="flex items-center justify-between py-2 text-sm">
-                                    <span class="font-semibold text-gray-700">Total</span>
-                                    <span class="font-semibold" :class="group.total < 0 ? 'text-red-600' : 'text-gray-900'">
-                                        {{ formatMoney(group.total) }}
-                                    </span>
-                                </li>
-                            </ul>
-                        </div>
-
-                        <div v-if="group.investmentAccounts.length > 0" class="rounded-md border border-gray-200 p-3">
-                            <div class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-indigo-500">
-                                {{ group.bank }} · Investimentos
-                                <button
-                                    type="button"
-                                    title="Ver últimas transações"
-                                    class="flex h-4 w-4 items-center justify-center rounded-full border border-indigo-400 text-[10px] font-bold normal-case text-indigo-500 hover:border-indigo-600 hover:text-indigo-700"
-                                    @click="openRecent(group)"
-                                >
-                                    i
-                                </button>
-                                <button
-                                    type="button"
-                                    :title="collapsedGroups.has(group.bank + '-invest') ? 'Mostrar conta' : 'Esconder conta'"
-                                    class="flex h-4 w-4 items-center justify-center rounded-full border border-indigo-400 text-[10px] font-bold normal-case text-indigo-500 hover:border-indigo-600 hover:text-indigo-700"
-                                    @click="toggleGroup(group.bank + '-invest')"
-                                >
-                                    {{ collapsedGroups.has(group.bank + '-invest') ? '+' : '−' }}
-                                </button>
-                            </div>
-                            <ul v-if="!collapsedGroups.has(group.bank + '-invest')" class="mt-1 divide-y divide-gray-100">
-                                <li
-                                    v-for="a in group.investmentAccounts"
-                                    :key="a.id"
-                                    class="flex items-center justify-between py-2 text-sm"
-                                >
-                                    <span class="text-gray-600">
-                                        {{ a.name }}
-                                    </span>
-                                    <span
-                                        v-if="a.balance !== null"
-                                        class="font-medium"
-                                        :class="Number(a.balance) < 0 ? 'text-red-600' : 'text-gray-900'"
-                                    >
-                                        {{ formatMoney(a.balance) }}
-                                    </span>
-                                </li>
-                                <li class="flex items-center justify-between py-2 text-sm">
-                                    <span class="font-semibold text-indigo-700">Total</span>
                                     <span
                                         class="font-semibold"
-                                        :class="group.investmentTotal < 0 ? 'text-red-600' : 'text-gray-900'"
+                                        :class="card.kind === 'invest' ? 'text-indigo-700' : 'text-gray-700'"
                                     >
-                                        {{ formatMoney(group.investmentTotal) }}
+                                        Total
+                                    </span>
+                                    <span
+                                        class="font-semibold"
+                                        :class="
+                                            (card.kind === 'invest' ? card.group.investmentTotal : card.group.total) < 0
+                                                ? 'text-red-600'
+                                                : 'text-gray-900'
+                                        "
+                                    >
+                                        {{ formatMoney(card.kind === 'invest' ? card.group.investmentTotal : card.group.total) }}
                                     </span>
                                 </li>
                             </ul>
