@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'person_id', 'institution_id', 'name', 'type', 'initial_balance', 'archived_at'])]
+#[Fillable(['user_id', 'person_id', 'institution_id', 'name', 'type', 'transient', 'initial_balance', 'archived_at'])]
 class Account extends Model
 {
     use BelongsToUser, HasFactory;
@@ -21,6 +21,7 @@ class Account extends Model
     {
         return [
             'type' => AccountType::class,
+            'transient' => 'boolean',
             'initial_balance' => 'decimal:2',
             'archived_at' => 'datetime',
         ];

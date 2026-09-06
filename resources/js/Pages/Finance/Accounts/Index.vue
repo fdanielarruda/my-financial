@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import Modal from '@/Components/Modal.vue';
@@ -37,6 +38,10 @@ const bankGroups = computed(() => {
         group.total += Number(account.balance ?? 0);
     }
 
+    for (const group of groups.values()) {
+        group.accounts.sort((a, b) => (a.transient ?? false) - (b.transient ?? false));
+    }
+
     return [...groups.values()].sort((a, b) => a.bank.localeCompare(b.bank));
 });
 
@@ -48,6 +53,7 @@ const form = useForm({
     institution_id: '',
     name: '',
     type: 'checking',
+    transient: false,
     initial_balance: 0,
 });
 
@@ -65,6 +71,7 @@ function openEdit(account) {
     form.institution_id = account.institution?.id ?? '';
     form.name = account.name;
     form.type = account.type;
+    form.transient = account.transient;
     form.initial_balance = account.initial_balance;
     form.clearErrors();
     showModal.value = true;
@@ -128,6 +135,12 @@ function destroy(account) {
                                     >
                                         {{ account.name }}
                                     </Link>
+                                    <span
+                                        v-if="account.transient"
+                                        class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
+                                    >
+                                        Transeunte
+                                    </span>
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-500 sm:px-6">{{ account.type_label }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-500 sm:px-6">{{ account.person.name }}</td>
@@ -203,6 +216,14 @@ function destroy(account) {
                         />
                         <InputError class="mt-2" :message="form.errors.initial_balance" />
                     </div>
+                </div>
+
+                <div class="mt-4">
+                    <label class="flex items-center gap-2 text-sm text-gray-600">
+                        <Checkbox v-model:checked="form.transient" />
+                        Transeunte
+                    </label>
+                    <InputError class="mt-2" :message="form.errors.transient" />
                 </div>
 
                 <div class="mt-6 flex justify-end gap-3">

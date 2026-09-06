@@ -25,10 +25,16 @@ function bankLabel(a) {
     return a.institution?.name ?? 'Dinheiro / Sem instituição';
 }
 
+const showTransient = ref(false);
+
+const visibleAccounts = computed(() =>
+    props.accounts.filter((a) => showTransient.value || !a.transient)
+);
+
 const banks = computed(() => {
     const seen = new Map();
 
-    for (const a of props.accounts) {
+    for (const a of visibleAccounts.value) {
         seen.set(bankKey(a), bankLabel(a));
     }
 
@@ -40,9 +46,9 @@ const banks = computed(() => {
 const selectedBank = ref(banks.value[0]?.key ?? '');
 
 const accountsForBank = computed(() =>
-    props.accounts
+    visibleAccounts.value
         .filter((a) => bankKey(a) === selectedBank.value)
-        .sort((a, b) => (a.type === 'investment') - (b.type === 'investment'))
+        .sort((a, b) => (a.type === 'investment') - (b.type === 'investment') || (a.transient ?? false) - (b.transient ?? false))
 );
 
 const form = useForm({
@@ -57,6 +63,10 @@ const form = useForm({
 
 watch(selectedBank, () => {
     form.account_id = accountsForBank.value[0]?.id ?? '';
+});
+
+watch(showTransient, () => {
+    selectedBank.value = banks.value[0]?.key ?? '';
 });
 
 const isTransfer = ref(false);
@@ -87,7 +97,9 @@ watch(
 );
 
 const transferTargetOptions = computed(() =>
-    props.accounts.filter((a) => a.id !== Number(transferForm.from_account_id))
+    visibleAccounts.value
+        .filter((a) => a.id !== Number(transferForm.from_account_id))
+        .sort((a, b) => (a.transient ?? false) - (b.transient ?? false))
 );
 
 function submitTransfer() {
@@ -241,6 +253,13 @@ function submit(type) {
                                 <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
                             </SelectInput>
                         </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="flex items-center gap-2 text-sm text-gray-600">
+                            <Checkbox v-model:checked="showTransient" />
+                            Exibir transeuntes
+                        </label>
                     </div>
 
                     <div class="mt-4">

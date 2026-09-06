@@ -34,6 +34,7 @@ class StoreAccountRequest extends FormRequest
                 AccountType::Checking->value, AccountType::Savings->value,
                 AccountType::Wallet->value, AccountType::Investment->value,
             ])],
+            'transient' => ['boolean'],
             'initial_balance' => ['required', 'numeric'],
         ];
     }

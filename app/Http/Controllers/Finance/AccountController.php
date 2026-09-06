@@ -44,6 +44,7 @@ class AccountController extends Controller
             'institution_id' => $data['institution_id'] ?? null,
             'name' => $data['name'],
             'type' => $data['type'],
+            'transient' => $data['transient'] ?? false,
             'initial_balance' => $data['initial_balance'],
         ]);
 
@@ -76,6 +77,7 @@ class AccountController extends Controller
             'institution_id' => $data['institution_id'] ?? null,
             'name' => $data['name'],
             'type' => $data['type'],
+            'transient' => $data['transient'] ?? false,
             'initial_balance' => $data['initial_balance'],
         ]);
 
@@ -96,6 +98,7 @@ class AccountController extends Controller
             'name' => $account->name,
             'type' => $account->type->value,
             'type_label' => $account->type->label(),
+            'transient' => $account->transient,
             'person' => $account->person,
             'institution' => $account->institution,
             'initial_balance' => $account->initial_balance,

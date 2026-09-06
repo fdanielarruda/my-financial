@@ -28,6 +28,7 @@ class TransactionController extends Controller
                     'id' => $account->id,
                     'name' => $account->name,
                     'type' => $account->type->value,
+                    'transient' => $account->transient,
                     'person' => $account->person,
                     'institution' => $account->institution,
                     'balance' => $account->type !== \App\Enums\AccountType::CreditCard ? $account->balance() : null,
