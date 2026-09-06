@@ -16,16 +16,18 @@ class CreditCardController extends Controller
 {
     public function index(Request $request): Response
     {
+        $userCards = CreditCard::with(['institution', 'paymentAccount'])
+            ->where('user_id', $request->user()->id)
+            ->orderBy('name')
+            ->get();
+
         $month = $request->filled('month')
             ? \Illuminate\Support\Carbon::parse($request->string('month').'-01')
-            : \Illuminate\Support\Carbon::now()->startOfMonth();
+            : $this->defaultMonth($userCards);
 
         $month = $month->min(\App\Models\Transaction::recurringCapMonth());
 
-        $cards = CreditCard::with(['institution', 'paymentAccount'])
-            ->where('user_id', $request->user()->id)
-            ->orderBy('name')
-            ->get()
+        $cards = $userCards
             ->map(function (CreditCard $card) use ($month) {
                 $invoice = $card->invoiceForMonth($month);
 
@@ -41,6 +43,7 @@ class CreditCardController extends Controller
                     'available_limit' => $card->availableLimit(),
                     'current_invoice_id' => $invoice->id,
                     'due_date' => $invoice->due_date,
+                    'invoice_status' => $invoice->status,
                 ];
             });
 
@@ -49,6 +52,28 @@ class CreditCardController extends Controller
             'institutions' => Institution::orderBy('name')->get(),
             'month' => $month->format('Y-m'),
         ]);
+    }
+
+    /**
+     * Defaults to the current month, unless every card's invoice for the
+     * current month is already paid, in which case it advances to next
+     * month so the view starts on the invoice the user still needs to track.
+     *
+     * @param  \Illuminate\Support\Collection<int, CreditCard>  $cards
+     */
+    private function defaultMonth($cards): \Illuminate\Support\Carbon
+    {
+        $currentMonth = \Illuminate\Support\Carbon::now()->startOfMonth();
+
+        if ($cards->isEmpty()) {
+            return $currentMonth;
+        }
+
+        $allPaid = $cards->every(
+            fn (CreditCard $card) => $card->invoiceForMonth($currentMonth)->status === \App\Enums\InvoiceStatus::Paid
+        );
+
+        return $allPaid ? $currentMonth->copy()->addMonthNoOverflow() : $currentMonth;
     }
 
     public function store(StoreCreditCardRequest $request): RedirectResponse

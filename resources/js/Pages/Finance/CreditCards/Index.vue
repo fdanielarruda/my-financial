@@ -112,16 +112,22 @@ function submit() {
                     <div v-for="card in cards" :key="card.id" class="rounded-lg bg-white p-5 shadow">
                         <div class="flex items-start justify-between">
                             <Link :href="route('finance.invoices.show', card.current_invoice_id)" class="hover:text-indigo-600">
-                                <p class="text-sm text-gray-500">
+                                <p class="flex items-center gap-2 text-sm text-gray-500">
                                     {{ card.institution?.name ?? 'Dinheiro' }} / {{ card.name }}
+                                    <span
+                                        v-if="card.invoice_status === 'paid'"
+                                        class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700"
+                                    >
+                                        Paga
+                                    </span>
                                 </p>
                                 <p class="mt-2 text-2xl font-semibold text-gray-900">{{ formatMoney(card.open_invoice_total) }}</p>
                             </Link>
                             <button class="text-sm text-indigo-600 hover:text-indigo-900" @click="openEdit(card)">Editar</button>
                         </div>
                         <p class="mt-1 text-xs text-gray-500">
+                            <template v-if="card.due_date">Vencimento {{ formatDate(card.due_date) }}<br /></template>
                             Limite disponível: {{ formatMoney(card.available_limit) }}
-                            <template v-if="card.due_date"> · Vencimento {{ formatDate(card.due_date) }}</template>
                         </p>
                     </div>
 
